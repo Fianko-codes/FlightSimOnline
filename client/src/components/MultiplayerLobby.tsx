@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useFlightSim } from "@/lib/stores/useFlightSim";
+import { config } from "@/lib/config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -27,7 +28,7 @@ export function MultiplayerLobby() {
   const fetchLobbies = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const response = await fetch("/api/lobbies");
+      const response = await fetch(`${config.apiUrl}/api/lobbies`);
       if (!response.ok) {
         throw new Error("Failed to load lobby list");
       }
@@ -61,7 +62,7 @@ export function MultiplayerLobby() {
 
     try {
       setIsCreating(true);
-      const response = await fetch("/api/lobbies", {
+      const response = await fetch(`${config.apiUrl}/api/lobbies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),

@@ -70,6 +70,50 @@ const AIRCRAFT_PHYSICS: Record<AircraftType, AircraftPhysics> = {
     maxSpeed: 150,
     minFlightSpeed: 20,
     fuelConsumptionRate: 0.02
+  },
+  helicopter: {
+    liftCoefficient: 0.25, // High lift for vertical flight
+    dragCoefficient: 0.025,
+    pitchSpeed: 2.0,
+    rollSpeed: 2.5,
+    yawSpeed: 2.2,
+    throttleChangeRate: 0.6,
+    maxSpeed: 90,
+    minFlightSpeed: 0, // Can hover
+    fuelConsumptionRate: 0.012
+  },
+  glider: {
+    liftCoefficient: 0.22,
+    dragCoefficient: 0.01, // Very low drag
+    pitchSpeed: 1.2,
+    rollSpeed: 1.8,
+    yawSpeed: 0.8,
+    throttleChangeRate: 0.2, // No engine, but we'll use it for gliding speed
+    maxSpeed: 70,
+    minFlightSpeed: 10,
+    fuelConsumptionRate: 0.001 // Minimal fuel use
+  },
+  bomber: {
+    liftCoefficient: 0.14,
+    dragCoefficient: 0.035,
+    pitchSpeed: 0.6,
+    rollSpeed: 0.8,
+    yawSpeed: 0.5,
+    throttleChangeRate: 0.25,
+    maxSpeed: 55,
+    minFlightSpeed: 30,
+    fuelConsumptionRate: 0.018
+  },
+  stunt: {
+    liftCoefficient: 0.2,
+    dragCoefficient: 0.018,
+    pitchSpeed: 3.0,
+    rollSpeed: 4.0,
+    yawSpeed: 2.5,
+    throttleChangeRate: 0.7,
+    maxSpeed: 120,
+    minFlightSpeed: 18,
+    fuelConsumptionRate: 0.016
   }
 };
 
@@ -325,6 +369,54 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
           stabilizerSize: [0.15, 1.2, 0.7] as [number, number, number],
           propellerSize: [0.5, 0.5, 1] as [number, number, number]
         };
+      case "helicopter":
+        return {
+          mainColor: isPlayer ? "#10b981" : "#dc2626",
+          accentColor: isPlayer ? "#34d399" : "#f87171",
+          darkColor: isPlayer ? "#059669" : "#991b1b",
+          fuselageSize: [1.2, 1.0, 3.5] as [number, number, number],
+          cockpitSize: [1.0, 0.7, 1.3] as [number, number, number],
+          wingSize: [0.3, 0.3, 0.3] as [number, number, number], // No wings, but we'll add rotor
+          tailSize: [0.2, 0.2, 1.5] as [number, number, number],
+          stabilizerSize: [0.15, 0.8, 0.6] as [number, number, number],
+          propellerSize: [6, 0.1, 0.1] as [number, number, number] // Main rotor
+        };
+      case "glider":
+        return {
+          mainColor: isPlayer ? "#8b5cf6" : "#dc2626",
+          accentColor: isPlayer ? "#a78bfa" : "#f87171",
+          darkColor: isPlayer ? "#6d28d9" : "#991b1b",
+          fuselageSize: [0.6, 0.5, 5] as [number, number, number],
+          cockpitSize: [0.5, 0.4, 1] as [number, number, number],
+          wingSize: [12, 0.1, 1] as [number, number, number],
+          tailSize: [4, 0.1, 0.6] as [number, number, number],
+          stabilizerSize: [0.1, 1.8, 0.6] as [number, number, number],
+          propellerSize: [0.3, 0.3, 0.3] as [number, number, number] // No propeller
+        };
+      case "bomber":
+        return {
+          mainColor: isPlayer ? "#6b7280" : "#dc2626",
+          accentColor: isPlayer ? "#9ca3af" : "#f87171",
+          darkColor: isPlayer ? "#374151" : "#991b1b",
+          fuselageSize: [1.8, 1.4, 6] as [number, number, number],
+          cockpitSize: [1.4, 1.0, 2] as [number, number, number],
+          wingSize: [14, 0.4, 2.5] as [number, number, number],
+          tailSize: [5, 0.25, 1.2] as [number, number, number],
+          stabilizerSize: [0.4, 2.5, 1.2] as [number, number, number],
+          propellerSize: [3, 0.15, 0.15] as [number, number, number]
+        };
+      case "stunt":
+        return {
+          mainColor: isPlayer ? "#f59e0b" : "#3b82f6",
+          accentColor: isPlayer ? "#fbbf24" : "#60a5fa",
+          darkColor: isPlayer ? "#d97706" : "#1e40af",
+          fuselageSize: [0.7, 0.5, 3.5] as [number, number, number],
+          cockpitSize: [0.6, 0.4, 1] as [number, number, number],
+          wingSize: [5, 0.12, 1] as [number, number, number],
+          tailSize: [2, 0.1, 0.6] as [number, number, number],
+          stabilizerSize: [0.12, 1, 0.6] as [number, number, number],
+          propellerSize: [1.8, 0.08, 0.08] as [number, number, number]
+        };
     }
   };
 
@@ -340,7 +432,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       </mesh>
       
       {/* Cockpit */}
-      <mesh position={[0, 0.5, 0.5]} castShadow>
+      <mesh position={[0, 0.5, -0.5]} castShadow>
         <boxGeometry args={visuals.cockpitSize} />
         <meshStandardMaterial color={visuals.darkColor} />
       </mesh>
@@ -352,20 +444,21 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       </mesh>
       
       {/* Tail wing */}
-      <mesh position={[0, 0, -2]} castShadow>
+      <mesh position={[0, 0, 2]} castShadow>
         <boxGeometry args={visuals.tailSize} />
         <meshStandardMaterial color={visuals.accentColor} />
       </mesh>
       
       {/* Vertical stabilizer */}
-      <mesh position={[0, 1, -2]} castShadow>
+      <mesh position={[0, 1, 2]} castShadow>
         <boxGeometry args={visuals.stabilizerSize} />
         <meshStandardMaterial color={visuals.accentColor} />
       </mesh>
       
-      {/* Propeller (visual only) - for cessna and cargo */}
-      {(currentAircraftType === "cessna" || currentAircraftType === "cargo") && (
-        <mesh position={[0, 0, 2.2]} rotation={[0, 0, isPlayer ? throttle * Math.PI * 10 : 0]}>
+      {/* Propeller (visual only) - for cessna, cargo, bomber, and stunt */}
+      {(currentAircraftType === "cessna" || currentAircraftType === "cargo" || 
+        currentAircraftType === "bomber" || currentAircraftType === "stunt") && (
+        <mesh position={[0, 0, -2.2]} rotation={[0, 0, isPlayer ? throttle * Math.PI * 10 : 0]}>
           <boxGeometry args={visuals.propellerSize} />
           <meshStandardMaterial color="#333333" />
         </mesh>
@@ -374,13 +467,13 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       {/* Jet engines for fighter */}
       {currentAircraftType === "fighter" && (
         <>
-          <mesh position={[0, -0.3, -2.5]} castShadow>
+          <mesh position={[0, -0.3, 2.5]} castShadow>
             <cylinderGeometry args={[0.3, 0.4, 1, 8]} />
             <meshStandardMaterial color="#1a1a1a" />
           </mesh>
           {/* Afterburner effect when throttle is high */}
           {isPlayer && throttle > 0.5 && (
-            <mesh position={[0, -0.3, -3]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh position={[0, -0.3, 3]} rotation={[Math.PI / 2, 0, 0]}>
               <coneGeometry args={[0.35, 0.8, 8]} />
               <meshStandardMaterial 
                 color="#ff6600" 
@@ -390,6 +483,22 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
             </mesh>
           )}
         </>
+      )}
+
+      {/* Helicopter main rotor */}
+      {currentAircraftType === "helicopter" && (
+        <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, isPlayer ? throttle * Math.PI * 8 : 0]}>
+          <boxGeometry args={visuals.propellerSize} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+      )}
+
+      {/* Helicopter tail rotor */}
+      {currentAircraftType === "helicopter" && (
+        <mesh position={[0, 0.5, 2]} rotation={[0, Math.PI / 2, isPlayer ? throttle * Math.PI * 12 : 0]}>
+          <boxGeometry args={[1.5, 0.08, 0.08]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
       )}
     </group>
   );

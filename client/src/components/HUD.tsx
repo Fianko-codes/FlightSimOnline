@@ -3,6 +3,19 @@ import { useFlightSim } from "@/lib/stores/useFlightSim";
 export function HUD() {
   const { speed, altitude, fuel, throttle, cameraView, otherPlayers, lobbyName, lobbyId } = useFlightSim();
 
+  const formatCameraView = (view: string) => {
+    switch (view) {
+      case "firstperson":
+        return "FIRST PERSON";
+      case "chase":
+        return "THIRD PERSON";
+      case "external":
+        return "EXTERNAL";
+      default:
+        return view.toUpperCase();
+    }
+  };
+
   return (
     <div className="fixed inset-0 pointer-events-none text-white font-mono">
       {/* Top left - Flight data */}
@@ -74,7 +87,7 @@ export function HUD() {
         <div className="space-y-1 text-sm">
           <div className="flex justify-between gap-4">
             <span className="text-gray-300">VIEW:</span>
-            <span className="text-purple-400 font-bold uppercase">{cameraView}</span>
+            <span className="text-purple-400 font-bold">{formatCameraView(cameraView)}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-300">PLAYERS:</span>

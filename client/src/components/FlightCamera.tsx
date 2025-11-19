@@ -27,11 +27,15 @@ export function FlightCamera() {
     let desiredLookAt: THREE.Vector3;
 
     switch (cameraView) {
-      case "cockpit":
-        // First-person view from cockpit
-        desiredPosition = aircraftPos.clone().add(forward.clone().multiplyScalar(2));
-        desiredPosition.add(up.clone().multiplyScalar(1));
-        desiredLookAt = aircraftPos.clone().add(forward.clone().multiplyScalar(50));
+      case "firstperson":
+        // True first-person view from inside cockpit
+        // Position camera at cockpit position (slightly forward and up from center)
+        desiredPosition = aircraftPos.clone();
+        desiredPosition.add(forward.clone().multiplyScalar(0.5)); // Slightly forward
+        desiredPosition.add(up.clone().multiplyScalar(0.3)); // Slightly up (cockpit height)
+        
+        // Look in the direction the aircraft is facing
+        desiredLookAt = desiredPosition.clone().add(forward.clone().multiplyScalar(100));
         break;
 
       case "external":

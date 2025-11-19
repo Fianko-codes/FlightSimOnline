@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { io, Socket } from "socket.io-client";
+import { config } from "@/lib/config";
 
-export type CameraView = "chase" | "cockpit" | "external";
-export type AircraftType = "cessna" | "cargo" | "fighter";
+export type CameraView = "chase" | "firstperson" | "external";
+export type AircraftType = "cessna" | "cargo" | "fighter" | "helicopter" | "glider" | "bomber" | "stunt";
 
 export interface Vector3 {
   x: number;
@@ -106,7 +107,7 @@ export const useFlightSim = create<FlightSimState>()(
     setCameraView: (view) => set({ cameraView: view }),
     
     cycleCameraView: () => {
-      const views: CameraView[] = ["chase", "cockpit", "external"];
+      const views: CameraView[] = ["chase", "firstperson", "external"];
       const currentView = get().cameraView;
       const currentIndex = views.indexOf(currentView);
       const nextIndex = (currentIndex + 1) % views.length;
@@ -165,7 +166,7 @@ export const useFlightSim = create<FlightSimState>()(
         existingSocket.disconnect();
       }
 
-      const socket = io({
+      const socket = io(config.socketUrl, {
         transports: ['websocket', 'polling'],
         query: { lobbyId }
       });
