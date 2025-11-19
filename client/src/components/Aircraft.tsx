@@ -57,7 +57,8 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
   const FUEL_CONSUMPTION_RATE = 0.01;
   const TERRAIN_HEIGHT = 0;
 
-  let lastUpdateTime = useRef(0);
+  const lastMultiplayerUpdate = useRef(0);
+  const lastCameraToggle = useRef(0);
 
   useFrame((state, delta) => {
     if (!groupRef.current || !isPlayer) {
@@ -74,9 +75,10 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     // Handle camera view change
     if (controls.changeView) {
       const currentTime = Date.now();
-      if (currentTime - lastUpdateTime.current > 300) {
+      if (currentTime - lastCameraToggle.current > 300) {
         cycleCameraView();
-        lastUpdateTime.current = currentTime;
+        lastCameraToggle.current = currentTime;
+        console.log("Camera view changed");
       }
     }
 
@@ -207,9 +209,9 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
 
     // Send state to multiplayer server (throttled to ~30 updates per second)
     const now = performance.now();
-    if (now - lastUpdateTime.current > 33) {
+    if (now - lastMultiplayerUpdate.current > 33) {
       updateMultiplayerState();
-      lastUpdateTime.current = now;
+      lastMultiplayerUpdate.current = now;
     }
   });
 
