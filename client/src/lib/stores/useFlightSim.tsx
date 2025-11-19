@@ -40,6 +40,9 @@ interface FlightSimState {
   socket: Socket | null;
   otherPlayers: Map<string, PlayerState>;
   isConnected: boolean;
+  lobbyId: string | null;
+  lobbyName: string | null;
+  hasJoinedLobby: boolean;
   
   // Actions
   setPosition: (position: Vector3) => void;
@@ -54,9 +57,11 @@ interface FlightSimState {
   cycleCameraView: () => void;
   consumeFuel: (amount: number) => void;
   refuel: (amount: number) => void;
+  joinLobby: (lobbyId: string, lobbyName: string) => void;
+  leaveLobby: () => void;
   
   // Multiplayer actions
-  connectMultiplayer: () => void;
+  connectMultiplayer: (lobbyId?: string) => void;
   disconnectMultiplayer: () => void;
   updateMultiplayerState: () => void;
   addOtherPlayer: (player: PlayerState) => void;
@@ -84,6 +89,9 @@ export const useFlightSim = create<FlightSimState>()(
     socket: null,
     otherPlayers: new Map(),
     isConnected: false,
+    lobbyId: null,
+    lobbyName: null,
+    hasJoinedLobby: false,
     
     // Actions
     setPosition: (position) => set({ position }),
@@ -114,11 +122,52 @@ export const useFlightSim = create<FlightSimState>()(
       const currentFuel = get().fuel;
       set({ fuel: Math.min(100, currentFuel + amount) });
     },
+
+    joinLobby: (lobbyId, lobbyName) => {
+      const currentLobby = get().lobbyId;
+      if (currentLobby === lobbyId && get().hasJoinedLobby) {
+        return;
+      }
+
+      get().disconnectMultiplayer();
+      set({
+        lobbyId,
+        lobbyName,
+        hasJoinedLobby: true,
+        playerId: null,
+        otherPlayers: new Map(),
+        isConnected: false,
+      });
+    },
+
+    leaveLobby: () => {
+      get().disconnectMultiplayer();
+      set({
+        lobbyId: null,
+        lobbyName: null,
+        hasJoinedLobby: false,
+        playerId: null,
+        otherPlayers: new Map(),
+        isConnected: false,
+      });
+    },
     
     // Multiplayer actions
-    connectMultiplayer: () => {
+    connectMultiplayer: (lobbyIdParam) => {
+      const lobbyId = lobbyIdParam || get().lobbyId;
+      if (!lobbyId) {
+        console.warn("Attempted to connect to multiplayer without a lobby ID");
+        return;
+      }
+
+      const existingSocket = get().socket;
+      if (existingSocket) {
+        existingSocket.disconnect();
+      }
+
       const socket = io({
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        query: { lobbyId }
       });
       
       socket.on("connect", () => {
@@ -166,7 +215,12 @@ export const useFlightSim = create<FlightSimState>()(
       const socket = get().socket;
       if (socket) {
         socket.disconnect();
-        set({ socket: null, isConnected: false, otherPlayers: new Map() });
+        set({
+          socket: null,
+          isConnected: false,
+          otherPlayers: new Map(),
+          playerId: null
+        });
       }
     },
     

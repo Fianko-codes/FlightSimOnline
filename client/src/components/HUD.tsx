@@ -1,7 +1,7 @@
 import { useFlightSim } from "@/lib/stores/useFlightSim";
 
 export function HUD() {
-  const { speed, altitude, fuel, throttle, cameraView, otherPlayers } = useFlightSim();
+  const { speed, altitude, fuel, throttle, cameraView, otherPlayers, lobbyName, lobbyId } = useFlightSim();
 
   return (
     <div className="fixed inset-0 pointer-events-none text-white font-mono">
@@ -58,11 +58,13 @@ export function HUD() {
       <div className="absolute bottom-4 left-4 bg-black/70 p-4 rounded-lg backdrop-blur-sm max-w-md">
         <div className="text-xl font-bold mb-2 text-blue-400">CONTROLS</div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <div><span className="text-gray-400">Mouse:</span> Look Around</div>
           <div><span className="text-gray-400">W/S:</span> Pitch</div>
           <div><span className="text-gray-400">A/D:</span> Roll</div>
           <div><span className="text-gray-400">Q/E:</span> Yaw</div>
           <div><span className="text-gray-400">Shift/Ctrl:</span> Throttle</div>
           <div className="col-span-2"><span className="text-gray-400">C:</span> Change Camera</div>
+          <div className="col-span-2 text-xs text-gray-500 mt-1">Click to lock mouse cursor</div>
         </div>
       </div>
 
@@ -78,6 +80,12 @@ export function HUD() {
             <span className="text-gray-300">PLAYERS:</span>
             <span className="text-purple-400 font-bold">{otherPlayers.size + 1}</span>
           </div>
+          {lobbyName && (
+            <div className="flex flex-col text-right text-xs text-gray-300">
+              <span className="font-semibold text-purple-300">{lobbyName}</span>
+              {lobbyId && <span className="text-[10px] uppercase tracking-wide opacity-70">{lobbyId}</span>}
+            </div>
+          )}
         </div>
       </div>
 

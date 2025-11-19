@@ -8,6 +8,7 @@ import { FlightCamera } from "./components/FlightCamera";
 import { HUD } from "./components/HUD";
 import { MultiplayerPlayers } from "./components/MultiplayerPlayers";
 import { AircraftSelection } from "./components/AircraftSelection";
+import { MultiplayerLobby } from "./components/MultiplayerLobby";
 import { useFlightSim } from "./lib/stores/useFlightSim";
 import { useGame } from "./lib/stores/useGame";
 
@@ -36,23 +37,28 @@ const controls = [
 ];
 
 function App() {
-  const { connectMultiplayer, disconnectMultiplayer } = useFlightSim();
+  const { connectMultiplayer, disconnectMultiplayer, hasJoinedLobby, lobbyId } = useFlightSim();
   const { phase } = useGame();
 
   useEffect(() => {
+    if (!hasJoinedLobby || !lobbyId) {
+      return;
+    }
+
     console.log("Flight Simulator: Connecting to multiplayer...");
-    connectMultiplayer();
+    connectMultiplayer(lobbyId);
 
     return () => {
       console.log("Flight Simulator: Disconnecting from multiplayer...");
       disconnectMultiplayer();
     };
-  }, [connectMultiplayer, disconnectMultiplayer]);
+  }, [connectMultiplayer, disconnectMultiplayer, hasJoinedLobby, lobbyId]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <KeyboardControls map={controls}>
-        {phase === "ready" && <AircraftSelection />}
+        {!hasJoinedLobby && <MultiplayerLobby />}
+        {hasJoinedLobby && phase === "ready" && <AircraftSelection />}
         
         <Canvas
           shadows
@@ -75,7 +81,7 @@ function App() {
           </Suspense>
         </Canvas>
         
-        {phase === "playing" && <HUD />}
+        {hasJoinedLobby && phase === "playing" && <HUD />}
       </KeyboardControls>
     </div>
   );

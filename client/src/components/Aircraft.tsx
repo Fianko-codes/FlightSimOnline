@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useFlightSim, AircraftType } from "@/lib/stores/useFlightSim";
+import { useMouseLook } from "@/hooks/useMouseLook";
 
 enum Controls {
   forward = "forward",
@@ -105,6 +106,15 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
 
   const lastMultiplayerUpdate = useRef(0);
   const lastCameraToggle = useRef(0);
+  const mouseDeltaRef = useRef({ x: 0, y: 0 });
+
+  // Handle mouse look
+  const handleMouseMove = useCallback((deltaX: number, deltaY: number) => {
+    mouseDeltaRef.current.x += deltaX;
+    mouseDeltaRef.current.y += deltaY;
+  }, []);
+
+  useMouseLook(handleMouseMove, isPlayer);
 
   useFrame((state, delta) => {
     if (!groupRef.current || !isPlayer) {
@@ -132,6 +142,16 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     let pitch = storeRotation.x;
     let roll = storeRotation.z;
     let yaw = storeRotation.y;
+
+    // Apply mouse look (pitch and yaw)
+    if (fuel > 0) {
+      const mouseDelta = mouseDeltaRef.current;
+      pitch -= mouseDelta.y;
+      yaw += mouseDelta.x;
+      
+      // Reset mouse delta after applying
+      mouseDeltaRef.current = { x: 0, y: 0 };
+    }
 
     // Throttle control
     let newThrottle = throttle;
