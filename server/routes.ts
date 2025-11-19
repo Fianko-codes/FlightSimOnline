@@ -10,6 +10,7 @@ interface PlayerState {
   velocity: { x: number; y: number; z: number };
   fuel: number;
   throttle: number;
+  aircraftType: string;
 }
 
 const players = new Map<string, PlayerState>();
@@ -35,7 +36,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       rotation: { x: 0, y: 0, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
       fuel: 100,
-      throttle: 0
+      throttle: 0,
+      aircraftType: "cessna"
     };
     
     players.set(socket.id, newPlayer);

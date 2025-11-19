@@ -3,6 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { io, Socket } from "socket.io-client";
 
 export type CameraView = "chase" | "cockpit" | "external";
+export type AircraftType = "cessna" | "cargo" | "fighter";
 
 export interface Vector3 {
   x: number;
@@ -17,6 +18,7 @@ export interface PlayerState {
   velocity: Vector3;
   fuel: number;
   throttle: number;
+  aircraftType: AircraftType;
 }
 
 interface FlightSimState {
@@ -29,6 +31,7 @@ interface FlightSimState {
   throttle: number;
   speed: number;
   altitude: number;
+  aircraftType: AircraftType;
   
   // Camera
   cameraView: CameraView;
@@ -46,6 +49,7 @@ interface FlightSimState {
   setFuel: (fuel: number) => void;
   setSpeed: (speed: number) => void;
   setAltitude: (altitude: number) => void;
+  setAircraftType: (type: AircraftType) => void;
   setCameraView: (view: CameraView) => void;
   cycleCameraView: () => void;
   consumeFuel: (amount: number) => void;
@@ -71,6 +75,7 @@ export const useFlightSim = create<FlightSimState>()(
     throttle: 0,
     speed: 0,
     altitude: 50,
+    aircraftType: "cessna",
     
     // Initial camera state
     cameraView: "chase",
@@ -88,6 +93,7 @@ export const useFlightSim = create<FlightSimState>()(
     setFuel: (fuel) => set({ fuel: Math.max(0, Math.min(100, fuel)) }),
     setSpeed: (speed) => set({ speed }),
     setAltitude: (altitude) => set({ altitude }),
+    setAircraftType: (type) => set({ aircraftType: type }),
     
     setCameraView: (view) => set({ cameraView: view }),
     
@@ -173,7 +179,8 @@ export const useFlightSim = create<FlightSimState>()(
           rotation: get().rotation,
           velocity: get().velocity,
           fuel: get().fuel,
-          throttle: get().throttle
+          throttle: get().throttle,
+          aircraftType: get().aircraftType
         };
         socket.emit("updateState", state);
       }

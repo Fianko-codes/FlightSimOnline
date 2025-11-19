@@ -18,6 +18,7 @@ export function MultiplayerPlayers() {
           playerId={player.id}
           position={[player.position.x, player.position.y, player.position.z]}
           rotation={[player.rotation.x, player.rotation.y, player.rotation.z]}
+          aircraftType={player.aircraftType}
         />
       ))}
     </>

@@ -7,7 +7,9 @@ import { Aircraft } from "./components/Aircraft";
 import { FlightCamera } from "./components/FlightCamera";
 import { HUD } from "./components/HUD";
 import { MultiplayerPlayers } from "./components/MultiplayerPlayers";
+import { AircraftSelection } from "./components/AircraftSelection";
 import { useFlightSim } from "./lib/stores/useFlightSim";
+import { useGame } from "./lib/stores/useGame";
 
 enum Controls {
   forward = "forward",
@@ -35,6 +37,7 @@ const controls = [
 
 function App() {
   const { connectMultiplayer, disconnectMultiplayer } = useFlightSim();
+  const { phase } = useGame();
 
   useEffect(() => {
     console.log("Flight Simulator: Connecting to multiplayer...");
@@ -49,6 +52,8 @@ function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <KeyboardControls map={controls}>
+        {phase === "ready" && <AircraftSelection />}
+        
         <Canvas
           shadows
           camera={{
@@ -69,7 +74,8 @@ function App() {
             <FlightCamera />
           </Suspense>
         </Canvas>
-        <HUD />
+        
+        {phase === "playing" && <HUD />}
       </KeyboardControls>
     </div>
   );

@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
-import { useFlightSim } from "@/lib/stores/useFlightSim";
+import { useFlightSim, AircraftType } from "@/lib/stores/useFlightSim";
 
 enum Controls {
   forward = "forward",
@@ -21,9 +21,58 @@ interface AircraftProps {
   playerId?: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  aircraftType?: AircraftType;
 }
 
-export function Aircraft({ isPlayer = true, playerId, position, rotation }: AircraftProps) {
+interface AircraftPhysics {
+  liftCoefficient: number;
+  dragCoefficient: number;
+  pitchSpeed: number;
+  rollSpeed: number;
+  yawSpeed: number;
+  throttleChangeRate: number;
+  maxSpeed: number;
+  minFlightSpeed: number;
+  fuelConsumptionRate: number;
+}
+
+const AIRCRAFT_PHYSICS: Record<AircraftType, AircraftPhysics> = {
+  cessna: {
+    liftCoefficient: 0.15,
+    dragCoefficient: 0.02,
+    pitchSpeed: 1.5,
+    rollSpeed: 2.0,
+    yawSpeed: 1.0,
+    throttleChangeRate: 0.5,
+    maxSpeed: 80,
+    minFlightSpeed: 15,
+    fuelConsumptionRate: 0.008
+  },
+  cargo: {
+    liftCoefficient: 0.12,
+    dragCoefficient: 0.03,
+    pitchSpeed: 0.8,
+    rollSpeed: 1.0,
+    yawSpeed: 0.6,
+    throttleChangeRate: 0.3,
+    maxSpeed: 60,
+    minFlightSpeed: 25,
+    fuelConsumptionRate: 0.015
+  },
+  fighter: {
+    liftCoefficient: 0.18,
+    dragCoefficient: 0.015,
+    pitchSpeed: 2.5,
+    rollSpeed: 3.5,
+    yawSpeed: 1.8,
+    throttleChangeRate: 0.8,
+    maxSpeed: 150,
+    minFlightSpeed: 20,
+    fuelConsumptionRate: 0.02
+  }
+};
+
+export function Aircraft({ isPlayer = true, playerId, position, rotation, aircraftType: propAircraftType }: AircraftProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [, getKeys] = useKeyboardControls<Controls>();
   
@@ -33,6 +82,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     velocity,
     throttle,
     fuel,
+    aircraftType: storeAircraftType,
     setPosition,
     setRotation,
     setVelocity,
@@ -40,21 +90,17 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     setSpeed,
     setAltitude,
     consumeFuel,
+    refuel,
     updateMultiplayerState,
     cycleCameraView
   } = useFlightSim();
 
+  // Determine which aircraft type to use
+  const currentAircraftType = isPlayer ? storeAircraftType : (propAircraftType || "cessna");
+  const physics = AIRCRAFT_PHYSICS[currentAircraftType];
+
   // Physics constants
   const GRAVITY = 9.8;
-  const LIFT_COEFFICIENT = 0.15;
-  const DRAG_COEFFICIENT = 0.02;
-  const PITCH_SPEED = 1.5;
-  const ROLL_SPEED = 2.0;
-  const YAW_SPEED = 1.0;
-  const THROTTLE_CHANGE_RATE = 0.5;
-  const MAX_SPEED = 100;
-  const MIN_FLIGHT_SPEED = 20;
-  const FUEL_CONSUMPTION_RATE = 0.01;
   const TERRAIN_HEIGHT = 0;
 
   const lastMultiplayerUpdate = useRef(0);
@@ -90,11 +136,11 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     // Throttle control
     let newThrottle = throttle;
     if (controls.throttleUp) {
-      newThrottle = Math.min(1, throttle + THROTTLE_CHANGE_RATE * delta);
+      newThrottle = Math.min(1, throttle + physics.throttleChangeRate * delta);
       setThrottle(newThrottle);
     }
     if (controls.throttleDown) {
-      newThrottle = Math.max(0, throttle - THROTTLE_CHANGE_RATE * delta);
+      newThrottle = Math.max(0, throttle - physics.throttleChangeRate * delta);
       setThrottle(newThrottle);
     }
 
@@ -102,31 +148,31 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     if (fuel > 0) {
       // Pitch control (W/S - nose up/down)
       if (controls.forward) {
-        pitch -= PITCH_SPEED * delta;
+        pitch -= physics.pitchSpeed * delta;
       }
       if (controls.backward) {
-        pitch += PITCH_SPEED * delta;
+        pitch += physics.pitchSpeed * delta;
       }
 
       // Roll control (A/D - roll left/right)
       if (controls.left) {
-        roll -= ROLL_SPEED * delta;
+        roll -= physics.rollSpeed * delta;
       }
       if (controls.right) {
-        roll += ROLL_SPEED * delta;
+        roll += physics.rollSpeed * delta;
       }
 
       // Yaw control (Q/E - turn left/right)
       if (controls.yawLeft) {
-        yaw -= YAW_SPEED * delta;
+        yaw -= physics.yawSpeed * delta;
       }
       if (controls.yawRight) {
-        yaw += YAW_SPEED * delta;
+        yaw += physics.yawSpeed * delta;
       }
 
       // Consume fuel based on throttle
       if (newThrottle > 0) {
-        consumeFuel(FUEL_CONSUMPTION_RATE * newThrottle * delta);
+        consumeFuel(physics.fuelConsumptionRate * newThrottle * delta);
       }
     } else {
       // No fuel - reduce throttle
@@ -144,7 +190,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     forward.applyEuler(euler);
 
     // Calculate thrust based on throttle
-    const thrust = newThrottle * MAX_SPEED;
+    const thrust = newThrottle * physics.maxSpeed;
 
     // Calculate current speed from velocity
     const currentSpeed = Math.sqrt(
@@ -155,12 +201,12 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
 
     // Lift force (based on speed and pitch)
     let lift = 0;
-    if (currentSpeed > MIN_FLIGHT_SPEED) {
-      lift = LIFT_COEFFICIENT * currentSpeed * Math.cos(pitch);
+    if (currentSpeed > physics.minFlightSpeed) {
+      lift = physics.liftCoefficient * currentSpeed * Math.cos(pitch);
     }
 
     // Drag force
-    const drag = DRAG_COEFFICIENT * currentSpeed * currentSpeed;
+    const drag = physics.dragCoefficient * currentSpeed * currentSpeed;
 
     // Apply forces
     const thrustForce = forward.multiplyScalar(thrust * delta);
@@ -184,7 +230,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
       z: storePosition.z + newVelocity.z * delta
     };
 
-    // Terrain collision
+    // Terrain collision and refueling
     if (newPosition.y < TERRAIN_HEIGHT + 2) {
       newPosition.y = TERRAIN_HEIGHT + 2;
       newVelocity.y = Math.max(0, newVelocity.y);
@@ -193,6 +239,11 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
       if (currentSpeed < 5) {
         newVelocity.x *= 0.5;
         newVelocity.z *= 0.5;
+      }
+      
+      // Refuel when on ground and moving slowly
+      if (currentSpeed < 10 && fuel < 100) {
+        refuel(20 * delta);
       }
     }
 
@@ -215,44 +266,111 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation }: Airc
     }
   });
 
+  // Aircraft visual properties based on type
+  const getAircraftVisuals = () => {
+    switch (currentAircraftType) {
+      case "cessna":
+        return {
+          mainColor: isPlayer ? "#3b82f6" : "#ef4444",
+          accentColor: isPlayer ? "#60a5fa" : "#f87171",
+          darkColor: isPlayer ? "#1e40af" : "#991b1b",
+          fuselageSize: [1, 0.8, 4] as [number, number, number],
+          cockpitSize: [0.8, 0.6, 1.5] as [number, number, number],
+          wingSize: [8, 0.2, 1.5] as [number, number, number],
+          tailSize: [3, 0.15, 0.8] as [number, number, number],
+          stabilizerSize: [0.2, 1.5, 0.8] as [number, number, number],
+          propellerSize: [2, 0.1, 0.1] as [number, number, number]
+        };
+      case "cargo":
+        return {
+          mainColor: isPlayer ? "#f59e0b" : "#dc2626",
+          accentColor: isPlayer ? "#fbbf24" : "#f87171",
+          darkColor: isPlayer ? "#b45309" : "#991b1b",
+          fuselageSize: [1.5, 1.2, 5] as [number, number, number],
+          cockpitSize: [1.2, 0.8, 1.8] as [number, number, number],
+          wingSize: [10, 0.3, 2] as [number, number, number],
+          tailSize: [4, 0.2, 1] as [number, number, number],
+          stabilizerSize: [0.3, 2, 1] as [number, number, number],
+          propellerSize: [2.5, 0.12, 0.12] as [number, number, number]
+        };
+      case "fighter":
+        return {
+          mainColor: isPlayer ? "#ef4444" : "#3b82f6",
+          accentColor: isPlayer ? "#f87171" : "#60a5fa",
+          darkColor: isPlayer ? "#991b1b" : "#1e40af",
+          fuselageSize: [0.8, 0.6, 4.5] as [number, number, number],
+          cockpitSize: [0.7, 0.5, 1.2] as [number, number, number],
+          wingSize: [6, 0.15, 1.2] as [number, number, number],
+          tailSize: [2.5, 0.12, 0.7] as [number, number, number],
+          stabilizerSize: [0.15, 1.2, 0.7] as [number, number, number],
+          propellerSize: [0.5, 0.5, 1] as [number, number, number]
+        };
+    }
+  };
+
+  const visuals = getAircraftVisuals();
+
   // Simple aircraft model
   return (
     <group ref={groupRef} position={position || [0, 50, 0]}>
       {/* Fuselage */}
       <mesh castShadow>
-        <boxGeometry args={[1, 0.8, 4]} />
-        <meshStandardMaterial color={isPlayer ? "#3b82f6" : "#ef4444"} />
+        <boxGeometry args={visuals.fuselageSize} />
+        <meshStandardMaterial color={visuals.mainColor} />
       </mesh>
       
       {/* Cockpit */}
       <mesh position={[0, 0.5, 0.5]} castShadow>
-        <boxGeometry args={[0.8, 0.6, 1.5]} />
-        <meshStandardMaterial color={isPlayer ? "#1e40af" : "#991b1b"} />
+        <boxGeometry args={visuals.cockpitSize} />
+        <meshStandardMaterial color={visuals.darkColor} />
       </mesh>
       
       {/* Wings */}
       <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={[8, 0.2, 1.5]} />
-        <meshStandardMaterial color={isPlayer ? "#60a5fa" : "#f87171"} />
+        <boxGeometry args={visuals.wingSize} />
+        <meshStandardMaterial color={visuals.accentColor} />
       </mesh>
       
       {/* Tail wing */}
       <mesh position={[0, 0, -2]} castShadow>
-        <boxGeometry args={[3, 0.15, 0.8]} />
-        <meshStandardMaterial color={isPlayer ? "#60a5fa" : "#f87171"} />
+        <boxGeometry args={visuals.tailSize} />
+        <meshStandardMaterial color={visuals.accentColor} />
       </mesh>
       
       {/* Vertical stabilizer */}
       <mesh position={[0, 1, -2]} castShadow>
-        <boxGeometry args={[0.2, 1.5, 0.8]} />
-        <meshStandardMaterial color={isPlayer ? "#60a5fa" : "#f87171"} />
+        <boxGeometry args={visuals.stabilizerSize} />
+        <meshStandardMaterial color={visuals.accentColor} />
       </mesh>
       
-      {/* Propeller (visual only) */}
-      <mesh position={[0, 0, 2.2]} rotation={[0, 0, isPlayer ? throttle * Math.PI * 10 : 0]}>
-        <boxGeometry args={[2, 0.1, 0.1]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
+      {/* Propeller (visual only) - for cessna and cargo */}
+      {(currentAircraftType === "cessna" || currentAircraftType === "cargo") && (
+        <mesh position={[0, 0, 2.2]} rotation={[0, 0, isPlayer ? throttle * Math.PI * 10 : 0]}>
+          <boxGeometry args={visuals.propellerSize} />
+          <meshStandardMaterial color="#333333" />
+        </mesh>
+      )}
+      
+      {/* Jet engines for fighter */}
+      {currentAircraftType === "fighter" && (
+        <>
+          <mesh position={[0, -0.3, -2.5]} castShadow>
+            <cylinderGeometry args={[0.3, 0.4, 1, 8]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+          {/* Afterburner effect when throttle is high */}
+          {isPlayer && throttle > 0.5 && (
+            <mesh position={[0, -0.3, -3]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[0.35, 0.8, 8]} />
+              <meshStandardMaterial 
+                color="#ff6600" 
+                emissive="#ff6600" 
+                emissiveIntensity={throttle * 2}
+              />
+            </mesh>
+          )}
+        </>
+      )}
     </group>
   );
 }
