@@ -1,73 +1,77 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { KeyboardControls } from "@react-three/drei";
-// import { useAudio } from "./lib/stores/useAudio";
 import "@fontsource/inter";
+import { Environment } from "./components/Environment";
+import { Aircraft } from "./components/Aircraft";
+import { FlightCamera } from "./components/FlightCamera";
+import { HUD } from "./components/HUD";
+import { MultiplayerPlayers } from "./components/MultiplayerPlayers";
+import { useFlightSim } from "./lib/stores/useFlightSim";
 
-// Import our game components
+enum Controls {
+  forward = "forward",
+  backward = "backward",
+  left = "left",
+  right = "right",
+  yawLeft = "yawLeft",
+  yawRight = "yawRight",
+  throttleUp = "throttleUp",
+  throttleDown = "throttleDown",
+  changeView = "changeView",
+}
 
-// Define control keys for the game
-// const controls = [
-//   { name: "forward", keys: ["KeyW", "ArrowUp"] },
-//   { name: "backward", keys: ["KeyS", "ArrowDown"] },
-//   { name: "leftward", keys: ["KeyA", "ArrowLeft"] },
-//   { name: "rightward", keys: ["KeyD", "ArrowRight"] },
-//   { name: "punch", keys: ["KeyJ"] },
-//   { name: "kick", keys: ["KeyK"] },
-//   { name: "block", keys: ["KeyL"] },
-//   { name: "special", keys: ["Space"] },
-// ];
+const controls = [
+  { name: Controls.forward, keys: ["KeyW", "ArrowUp"] },
+  { name: Controls.backward, keys: ["KeyS", "ArrowDown"] },
+  { name: Controls.left, keys: ["KeyA", "ArrowLeft"] },
+  { name: Controls.right, keys: ["KeyD", "ArrowRight"] },
+  { name: Controls.yawLeft, keys: ["KeyQ"] },
+  { name: Controls.yawRight, keys: ["KeyE"] },
+  { name: Controls.throttleUp, keys: ["ShiftLeft", "ShiftRight"] },
+  { name: Controls.throttleDown, keys: ["ControlLeft", "ControlRight"] },
+  { name: Controls.changeView, keys: ["KeyC"] },
+];
 
-// Main App component
 function App() {
-  //const { gamePhase } = useFighting();
-  const [showCanvas, setShowCanvas] = useState(false);
+  const { connectMultiplayer, disconnectMultiplayer } = useFlightSim();
 
-  // Show the canvas once everything is loaded
   useEffect(() => {
-    setShowCanvas(true);
-  }, []);
+    console.log("Flight Simulator: Connecting to multiplayer...");
+    connectMultiplayer();
+
+    return () => {
+      console.log("Flight Simulator: Disconnecting from multiplayer...");
+      disconnectMultiplayer();
+    };
+  }, [connectMultiplayer, disconnectMultiplayer]);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}/>
-    // {showCanvas && (
-    //   <KeyboardControls map={controls}>
-    //     {gamePhase === 'menu' && <Menu />}
-
-    //     {gamePhase === 'character_selection' && <CharacterSelection />}
-
-    //     {(gamePhase === 'fighting' || gamePhase === 'round_end' || gamePhase === 'match_end') && (
-    //       <>
-    //         <Canvas
-    //           shadows
-    //           camera={{
-    //             position: [0, 2, 8],
-    //             fov: 45,
-    //             near: 0.1,
-    //             far: 1000
-    //           }}
-    //           gl={{
-    //             antialias: true,
-    //             powerPreference: "default"
-    //           }}
-    //         >
-    //           <color attach="background" args={["#111111"]} />
-
-    //           {/* Lighting */}
-    //           <Lights />
-
-    //           <Suspense fallback={null}>
-    //           </Suspense>
-    //         </Canvas>
-    //         <GameUI />
-    //       </>
-    //     )}
-
-    //     <ShortcutManager />
-    //     <SoundManager />
-    //   </KeyboardControls>
-    // )}
-    //</div>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+      <KeyboardControls map={controls}>
+        <Canvas
+          shadows
+          camera={{
+            position: [0, 60, 30],
+            fov: 75,
+            near: 0.1,
+            far: 2000
+          }}
+          gl={{
+            antialias: true,
+            powerPreference: "high-performance"
+          }}
+        >
+          <Suspense fallback={null}>
+            <Environment />
+            <Aircraft isPlayer={true} />
+            <MultiplayerPlayers />
+            <FlightCamera />
+          </Suspense>
+        </Canvas>
+        <HUD />
+      </KeyboardControls>
+    </div>
   );
 }
 
