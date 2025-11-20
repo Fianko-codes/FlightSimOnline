@@ -25,8 +25,8 @@ enum Controls {
 }
 
 const controls = [
-  { name: Controls.yawLeft, keys: ["KeyA"] },
-  { name: Controls.yawRight, keys: ["KeyD"] },
+  { name: Controls.yawLeft, keys: ["KeyD"] },
+  { name: Controls.yawRight, keys: ["KeyA"] },
   { name: Controls.throttleUp, keys: ["KeyW"] },
   { name: Controls.throttleDown, keys: ["KeyS"] },
   { name: Controls.changeView, keys: ["KeyC"] },
