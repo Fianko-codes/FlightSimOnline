@@ -25,15 +25,12 @@ enum Controls {
 }
 
 const controls = [
-  { name: Controls.forward, keys: ["KeyW", "ArrowUp"] },
-  { name: Controls.backward, keys: ["KeyS", "ArrowDown"] },
-  { name: Controls.left, keys: ["KeyA", "ArrowLeft"] },
-  { name: Controls.right, keys: ["KeyD", "ArrowRight"] },
-  { name: Controls.yawLeft, keys: ["KeyQ"] },
-  { name: Controls.yawRight, keys: ["KeyE"] },
-  { name: Controls.throttleUp, keys: ["ShiftLeft", "ShiftRight"] },
-  { name: Controls.throttleDown, keys: ["ControlLeft", "ControlRight"] },
+  { name: Controls.yawLeft, keys: ["KeyA"] },
+  { name: Controls.yawRight, keys: ["KeyD"] },
+  { name: Controls.throttleUp, keys: ["KeyW"] },
+  { name: Controls.throttleDown, keys: ["KeyS"] },
   { name: Controls.changeView, keys: ["KeyC"] },
+  { name: Controls.boost, keys: ["ShiftLeft", "ShiftRight"] },
 ];
 
 function App() {
