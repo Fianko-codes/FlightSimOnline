@@ -6,6 +6,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { useFlightSim, AircraftType } from "@/lib/stores/useFlightSim";
 import { useMouseLook } from "@/hooks/useMouseLook";
 
+const WORLD_SIZE = 2000;
+const HALF_WORLD = WORLD_SIZE / 2;
+
 enum Controls {
   forward = "forward",
   backward = "backward",
@@ -390,6 +393,19 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       }
     }
 
+    // World wrapping for infinite loop illusion
+    if (newPosition.x > HALF_WORLD) newPosition.x -= WORLD_SIZE;
+    if (newPosition.x < -HALF_WORLD) newPosition.x += WORLD_SIZE;
+    if (newPosition.z > HALF_WORLD) newPosition.z -= WORLD_SIZE;
+    if (newPosition.z < -HALF_WORLD) newPosition.z += WORLD_SIZE;
+
+    // Continue as before...
+    setPosition(newPosition);
+    setRotation({ x: pitch, y: yaw, z: roll });
+    setVelocity(newVelocity);
+    setSpeed(currentSpeed);
+    setAltitude(newPosition.y);
+    
     // Update store
     setPosition(newPosition);
     setRotation({ x: pitch, y: yaw, z: roll });
