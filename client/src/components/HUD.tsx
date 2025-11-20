@@ -71,11 +71,10 @@ export function HUD() {
       <div className="absolute bottom-4 left-4 bg-black/70 p-4 rounded-lg backdrop-blur-sm max-w-md">
         <div className="text-xl font-bold mb-2 text-blue-400">CONTROLS</div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <div><span className="text-gray-400">Mouse:</span> Look Around</div>
-          <div><span className="text-gray-400">W/S:</span> Pitch</div>
-          <div><span className="text-gray-400">A/D:</span> Roll</div>
-          <div><span className="text-gray-400">Q/E:</span> Yaw</div>
-          <div><span className="text-gray-400">Shift/Ctrl:</span> Throttle</div>
+          <div><span className="text-gray-400">Mouse:</span> Pitch (up/down), Roll (left/right)</div>
+          <div><span className="text-gray-400">W/S:</span> Throttle</div>
+          <div><span className="text-gray-400">A/D:</span> Yaw (rudder)</div>
+          <div><span className="text-gray-400">Shift:</span> Afterburner/Boost</div>
           <div className="col-span-2"><span className="text-gray-400">C:</span> Change Camera</div>
           <div className="col-span-2 text-xs text-gray-500 mt-1">Click to lock mouse cursor</div>
         </div>
