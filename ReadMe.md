@@ -4,10 +4,6 @@
 
 This is a real-time multiplayer flight simulator built with React Three Fiber for 3D rendering and Socket.io for multiplayer networking. Players control aircraft in a shared 3D environment with realistic flight physics including gravity, lift, drag, and fuel management. The application features multiple camera views (chase, cockpit, external), a HUD display showing flight data, and real-time synchronization of player positions across connected clients.
 
-## User Preferences
-
-Preferred communication style: Simple, everyday language.
-
 ## System Architecture
 
 ### Frontend Architecture
