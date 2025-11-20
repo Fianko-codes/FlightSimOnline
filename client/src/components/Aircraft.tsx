@@ -1,7 +1,8 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { useFlightSim, AircraftType } from "@/lib/stores/useFlightSim";
 import { useMouseLook } from "@/hooks/useMouseLook";
 
@@ -15,6 +16,14 @@ enum Controls {
   throttleUp = "throttleUp",
   throttleDown = "throttleDown",
   changeView = "changeView",
+  collectiveUp = "collectiveUp",
+  collectiveDown = "collectiveDown",
+  cyclicForward = "cyclicForward",
+  cyclicBackward = "cyclicBackward",
+  cyclicLeft = "cyclicLeft",
+  cyclicRight = "cyclicRight",
+  tailRotorLeft = "tailRotorLeft",
+  tailRotorRight = "tailRotorRight",
 }
 
 interface AircraftProps {
@@ -117,9 +126,48 @@ const AIRCRAFT_PHYSICS: Record<AircraftType, AircraftPhysics> = {
   }
 };
 
+
+const MODEL_PATHS: Record<AircraftType, string> = {
+  cessna: "/models/cessna_172/scene.gltf",
+  cargo: "/models/cargo/scene.gltf",
+  fighter: "/models/fighter_jet/scene.gltf",
+  helicopter: "/models/helicopter/scene.gltf",
+  glider: "/models/glider/scene.gltf",
+  bomber: "/models/bomber/scene.gltf",
+  stunt: "/models/stunt_plane/scene.gltf",
+};
+
+interface ModelProperties {
+  scale: number;
+  rotation: [number, number, number];
+  path: string;
+}
+
+const MODEL_PROPERTIES: Record<AircraftType, ModelProperties> = {
+  cessna: { scale: 0.7, rotation: [0, Math.PI, 0], path: "/models/cessna_172/scene.gltf" },
+  cargo: { scale: 0.7, rotation: [0, Math.PI, 0], path: "/models/cargo/scene.gltf" },
+  fighter: { scale: 12, rotation: [0, Math.PI, 0], path: "/models/fighter_jet/scene.gltf" },
+  helicopter: { scale: 10, rotation: [0, 0, 0], path: "/models/helicopter/scene.gltf" },
+  glider: { scale: 50, rotation: [0, Math.PI, 0], path: "/models/glider/scene.gltf" },
+  bomber: { scale: 16, rotation: [0, Math.PI, 0], path: "/models/bomber/scene.gltf" },
+  stunt: { scale: 3, rotation: [0, Math.PI, 0], path: "/models/stunt_plane/scene.gltf" },
+};
+
+import { useState, useEffect } from "react";
+
+interface GLTF {
+  scene: THREE.Group;
+  animations: THREE.AnimationClip[];
+  asset: { [key: string]: any };
+  cameras: THREE.Camera[];
+  parser: any;
+  userData: { [key: string]: any };
+}
+
 export function Aircraft({ isPlayer = true, playerId, position, rotation, aircraftType: propAircraftType }: AircraftProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [, getKeys] = useKeyboardControls<Controls>();
+  const [model, setModel] = useState<THREE.Group | null>(null);
   
   const {
     position: storePosition,
@@ -143,6 +191,37 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   // Determine which aircraft type to use
   const currentAircraftType = isPlayer ? storeAircraftType : (propAircraftType || "cessna");
   const physics = AIRCRAFT_PHYSICS[currentAircraftType];
+  const modelProperties = MODEL_PROPERTIES[currentAircraftType];
+
+  useEffect(() => {
+    if (modelProperties.path) {
+      const loader = new GLTFLoader();
+      loader.load(
+        modelProperties.path,
+        (gltf) => {
+          const model = gltf.scene as THREE.Group;
+          model.scale.set(modelProperties.scale, modelProperties.scale, modelProperties.scale);
+          model.rotation.set(modelProperties.rotation[0], modelProperties.rotation[1], modelProperties.rotation[2]);
+
+          // Attempt to animate propellers/rotors
+          model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes("propeller")) {
+              (child as THREE.Mesh).rotation.z = throttle * Math.PI * 10;
+            }
+            if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes("rotor")) {
+              (child as THREE.Mesh).rotation.z = throttle * Math.PI * 10;
+            }
+          });
+
+          setModel(model);
+        },
+        undefined,
+        (error) => {
+          console.error(error);
+        }
+      );
+    }
+  }, [modelProperties.path]);
 
   // Physics constants
   const GRAVITY = 9.8;
@@ -161,7 +240,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   useMouseLook(handleMouseMove, isPlayer);
 
   useFrame((state, delta) => {
-    if (!groupRef.current || !isPlayer) {
+    if (!groupRef.current || !isPlayer || !model) {
       // For other players, just update position from props
       if (groupRef.current && position && rotation) {
         groupRef.current.position.set(position[0], position[1], position[2]);
@@ -328,178 +407,43 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       updateMultiplayerState();
       lastMultiplayerUpdate.current = now;
     }
+
+    if (currentAircraftType === "helicopter") {
+      // Collective control (increase/decrease vertical thrust)
+      if (controls.collectiveUp) {
+        newVelocity.y += 5 * delta; // Adjust vertical speed
+      }
+      if (controls.collectiveDown) {
+        newVelocity.y -= 5 * delta; // Adjust vertical speed
+      }
+
+      // Cyclic control (tilt the helicopter)
+      if (controls.cyclicForward) {
+        pitch -= physics.pitchSpeed * delta;
+      }
+      if (controls.cyclicBackward) {
+        pitch += physics.pitchSpeed * delta;
+      }
+      if (controls.cyclicLeft) {
+        roll -= physics.rollSpeed * delta;
+      }
+      if (controls.cyclicRight) {
+        roll += physics.rollSpeed * delta;
+      }
+
+      // Tail rotor control (yaw)
+      if (controls.tailRotorLeft) {
+        yaw -= physics.yawSpeed * delta;
+      }
+      if (controls.tailRotorRight) {
+        yaw += physics.yawSpeed * delta;
+      }
+    }
   });
 
-  // Aircraft visual properties based on type
-  const getAircraftVisuals = () => {
-    switch (currentAircraftType) {
-      case "cessna":
-        return {
-          mainColor: isPlayer ? "#3b82f6" : "#ef4444",
-          accentColor: isPlayer ? "#60a5fa" : "#f87171",
-          darkColor: isPlayer ? "#1e40af" : "#991b1b",
-          fuselageSize: [1, 0.8, 4] as [number, number, number],
-          cockpitSize: [0.8, 0.6, 1.5] as [number, number, number],
-          wingSize: [8, 0.2, 1.5] as [number, number, number],
-          tailSize: [3, 0.15, 0.8] as [number, number, number],
-          stabilizerSize: [0.2, 1.5, 0.8] as [number, number, number],
-          propellerSize: [2, 0.1, 0.1] as [number, number, number]
-        };
-      case "cargo":
-        return {
-          mainColor: isPlayer ? "#f59e0b" : "#dc2626",
-          accentColor: isPlayer ? "#fbbf24" : "#f87171",
-          darkColor: isPlayer ? "#b45309" : "#991b1b",
-          fuselageSize: [1.5, 1.2, 5] as [number, number, number],
-          cockpitSize: [1.2, 0.8, 1.8] as [number, number, number],
-          wingSize: [10, 0.3, 2] as [number, number, number],
-          tailSize: [4, 0.2, 1] as [number, number, number],
-          stabilizerSize: [0.3, 2, 1] as [number, number, number],
-          propellerSize: [2.5, 0.12, 0.12] as [number, number, number]
-        };
-      case "fighter":
-        return {
-          mainColor: isPlayer ? "#ef4444" : "#3b82f6",
-          accentColor: isPlayer ? "#f87171" : "#60a5fa",
-          darkColor: isPlayer ? "#991b1b" : "#1e40af",
-          fuselageSize: [0.8, 0.6, 4.5] as [number, number, number],
-          cockpitSize: [0.7, 0.5, 1.2] as [number, number, number],
-          wingSize: [6, 0.15, 1.2] as [number, number, number],
-          tailSize: [2.5, 0.12, 0.7] as [number, number, number],
-          stabilizerSize: [0.15, 1.2, 0.7] as [number, number, number],
-          propellerSize: [0.5, 0.5, 1] as [number, number, number]
-        };
-      case "helicopter":
-        return {
-          mainColor: isPlayer ? "#10b981" : "#dc2626",
-          accentColor: isPlayer ? "#34d399" : "#f87171",
-          darkColor: isPlayer ? "#059669" : "#991b1b",
-          fuselageSize: [1.2, 1.0, 3.5] as [number, number, number],
-          cockpitSize: [1.0, 0.7, 1.3] as [number, number, number],
-          wingSize: [0.3, 0.3, 0.3] as [number, number, number], // No wings, but we'll add rotor
-          tailSize: [0.2, 0.2, 1.5] as [number, number, number],
-          stabilizerSize: [0.15, 0.8, 0.6] as [number, number, number],
-          propellerSize: [6, 0.1, 0.1] as [number, number, number] // Main rotor
-        };
-      case "glider":
-        return {
-          mainColor: isPlayer ? "#8b5cf6" : "#dc2626",
-          accentColor: isPlayer ? "#a78bfa" : "#f87171",
-          darkColor: isPlayer ? "#6d28d9" : "#991b1b",
-          fuselageSize: [0.6, 0.5, 5] as [number, number, number],
-          cockpitSize: [0.5, 0.4, 1] as [number, number, number],
-          wingSize: [12, 0.1, 1] as [number, number, number],
-          tailSize: [4, 0.1, 0.6] as [number, number, number],
-          stabilizerSize: [0.1, 1.8, 0.6] as [number, number, number],
-          propellerSize: [0.3, 0.3, 0.3] as [number, number, number] // No propeller
-        };
-      case "bomber":
-        return {
-          mainColor: isPlayer ? "#6b7280" : "#dc2626",
-          accentColor: isPlayer ? "#9ca3af" : "#f87171",
-          darkColor: isPlayer ? "#374151" : "#991b1b",
-          fuselageSize: [1.8, 1.4, 6] as [number, number, number],
-          cockpitSize: [1.4, 1.0, 2] as [number, number, number],
-          wingSize: [14, 0.4, 2.5] as [number, number, number],
-          tailSize: [5, 0.25, 1.2] as [number, number, number],
-          stabilizerSize: [0.4, 2.5, 1.2] as [number, number, number],
-          propellerSize: [3, 0.15, 0.15] as [number, number, number]
-        };
-      case "stunt":
-        return {
-          mainColor: isPlayer ? "#f59e0b" : "#3b82f6",
-          accentColor: isPlayer ? "#fbbf24" : "#60a5fa",
-          darkColor: isPlayer ? "#d97706" : "#1e40af",
-          fuselageSize: [0.7, 0.5, 3.5] as [number, number, number],
-          cockpitSize: [0.6, 0.4, 1] as [number, number, number],
-          wingSize: [5, 0.12, 1] as [number, number, number],
-          tailSize: [2, 0.1, 0.6] as [number, number, number],
-          stabilizerSize: [0.12, 1, 0.6] as [number, number, number],
-          propellerSize: [1.8, 0.08, 0.08] as [number, number, number]
-        };
-    }
-  };
-
-  const visuals = getAircraftVisuals();
-
-  // Simple aircraft model
   return (
     <group ref={groupRef} position={position || [0, 50, 0]}>
-      {/* Fuselage */}
-      <mesh castShadow>
-        <boxGeometry args={visuals.fuselageSize} />
-        <meshStandardMaterial color={visuals.mainColor} />
-      </mesh>
-      
-      {/* Cockpit */}
-      <mesh position={[0, 0.5, -0.5]} castShadow>
-        <boxGeometry args={visuals.cockpitSize} />
-        <meshStandardMaterial color={visuals.darkColor} />
-      </mesh>
-      
-      {/* Wings */}
-      <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={visuals.wingSize} />
-        <meshStandardMaterial color={visuals.accentColor} />
-      </mesh>
-      
-      {/* Tail wing */}
-      <mesh position={[0, 0, 2]} castShadow>
-        <boxGeometry args={visuals.tailSize} />
-        <meshStandardMaterial color={visuals.accentColor} />
-      </mesh>
-      
-      {/* Vertical stabilizer */}
-      <mesh position={[0, 1, 2]} castShadow>
-        <boxGeometry args={visuals.stabilizerSize} />
-        <meshStandardMaterial color={visuals.accentColor} />
-      </mesh>
-      
-      {/* Propeller (visual only) - for cessna, cargo, bomber, and stunt */}
-      {(currentAircraftType === "cessna" || currentAircraftType === "cargo" || 
-        currentAircraftType === "bomber" || currentAircraftType === "stunt") && (
-        <mesh position={[0, 0, -2.2]} rotation={[0, 0, isPlayer ? throttle * Math.PI * 10 : 0]}>
-          <boxGeometry args={visuals.propellerSize} />
-          <meshStandardMaterial color="#333333" />
-        </mesh>
-      )}
-      
-      {/* Jet engines for fighter */}
-      {currentAircraftType === "fighter" && (
-        <>
-          <mesh position={[0, -0.3, 2.5]} castShadow>
-            <cylinderGeometry args={[0.3, 0.4, 1, 8]} />
-            <meshStandardMaterial color="#1a1a1a" />
-          </mesh>
-          {/* Afterburner effect when throttle is high */}
-          {isPlayer && throttle > 0.5 && (
-            <mesh position={[0, -0.3, 3]} rotation={[Math.PI / 2, 0, 0]}>
-              <coneGeometry args={[0.35, 0.8, 8]} />
-              <meshStandardMaterial 
-                color="#ff6600" 
-                emissive="#ff6600" 
-                emissiveIntensity={throttle * 2}
-              />
-            </mesh>
-          )}
-        </>
-      )}
-
-      {/* Helicopter main rotor */}
-      {currentAircraftType === "helicopter" && (
-        <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, isPlayer ? throttle * Math.PI * 8 : 0]}>
-          <boxGeometry args={visuals.propellerSize} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
-      )}
-
-      {/* Helicopter tail rotor */}
-      {currentAircraftType === "helicopter" && (
-        <mesh position={[0, 0.5, 2]} rotation={[0, Math.PI / 2, isPlayer ? throttle * Math.PI * 12 : 0]}>
-          <boxGeometry args={[1.5, 0.08, 0.08]} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
-      )}
+      {model ? <primitive object={model} /> : null}
     </group>
   );
 }
