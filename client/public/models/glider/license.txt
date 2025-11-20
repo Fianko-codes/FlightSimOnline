@@ -1,0 +1,11 @@
+Model Information:
+* title:	Douglas C-47 Skytrain
+* source:	https://sketchfab.com/3d-models/douglas-c-47-skytrain-bd01ee417416492f919a4b988f03bc8b
+* author:	Spark_Customs (https://sketchfab.com/Spark_Customs)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Douglas C-47 Skytrain" (https://sketchfab.com/3d-models/douglas-c-47-skytrain-bd01ee417416492f919a4b988f03bc8b) by Spark_Customs (https://sketchfab.com/Spark_Customs) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

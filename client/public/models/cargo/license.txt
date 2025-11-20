@@ -1,0 +1,11 @@
+Model Information:
+* title:	C17 Plane Game-Ready
+* source:	https://sketchfab.com/3d-models/c17-plane-game-ready-549bce95137c4304b771a2b046420c6f
+* author:	HaVe (https://sketchfab.com/HaVe)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "C17 Plane Game-Ready" (https://sketchfab.com/3d-models/c17-plane-game-ready-549bce95137c4304b771a2b046420c6f) by HaVe (https://sketchfab.com/HaVe) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

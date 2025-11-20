@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tupolev Tu-91 (Boot)
+* source:	https://sketchfab.com/3d-models/tupolev-tu-91-boot-2ffafa5e479d484281cd60bfbb873abd
+* author:	SB-129 (https://sketchfab.com/hrd4588)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tupolev Tu-91 (Boot)" (https://sketchfab.com/3d-models/tupolev-tu-91-boot-2ffafa5e479d484281cd60bfbb873abd) by SB-129 (https://sketchfab.com/hrd4588) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

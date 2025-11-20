@@ -1,0 +1,11 @@
+Model Information:
+* title:	Dewoitine D.520
+* source:	https://sketchfab.com/3d-models/dewoitine-d520-5716d7b67a0a4ac6900a4b839d08e23d
+* author:	Arthur C. Galuppo (https://sketchfab.com/arthur80cristian)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Dewoitine D.520" (https://sketchfab.com/3d-models/dewoitine-d520-5716d7b67a0a4ac6900a4b839d08e23d) by Arthur C. Galuppo (https://sketchfab.com/arthur80cristian) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
