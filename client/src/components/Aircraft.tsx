@@ -232,7 +232,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   const mouseDeltaRef = useRef({ x: 0, y: 0 });
 
   // Mouse input will control pitch (Y axis) and roll (X axis) in War Thunder arcade style
-  const mouseSensitivity = 0.01; // Tweak as needed for realism/feel
+  const mouseSensitivity = 0.1; // Tweak as needed for realism/feel
 
   // Handle mouse look
   const handleMouseMove = useCallback((deltaX: number, deltaY: number) => {
