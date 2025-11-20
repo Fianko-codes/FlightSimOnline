@@ -10,15 +10,14 @@ const WORLD_SIZE = 2000;
 const HALF_WORLD = WORLD_SIZE / 2;
 
 enum Controls {
-  forward = "forward",
-  backward = "backward",
-  left = "left",
-  right = "right",
-  yawLeft = "yawLeft",
-  yawRight = "yawRight",
-  throttleUp = "throttleUp",
-  throttleDown = "throttleDown",
-  changeView = "changeView",
+  // Only keep the ones necessary for the new scheme
+  yawLeft = "yawLeft",      // A
+  yawRight = "yawRight",    // D
+  throttleUp = "throttleUp",    // W
+  throttleDown = "throttleDown", // S
+  afterburner = "afterburner",  // Shift (NEW – you may need to add to your key handler for "afterburner")
+  changeView = "changeView",    // C
+  // Keep heli/cyclic's for helicopter special handling if needed
   collectiveUp = "collectiveUp",
   collectiveDown = "collectiveDown",
   cyclicForward = "cyclicForward",
@@ -129,7 +128,6 @@ const AIRCRAFT_PHYSICS: Record<AircraftType, AircraftPhysics> = {
   }
 };
 
-
 const MODEL_PATHS: Record<AircraftType, string> = {
   cessna: "/models/cessna_172/scene.gltf",
   cargo: "/models/cargo/scene.gltf",
@@ -171,7 +169,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   const groupRef = useRef<THREE.Group>(null);
   const [, getKeys] = useKeyboardControls<Controls>();
   const [model, setModel] = useState<THREE.Group | null>(null);
-  
+
   const {
     position: storePosition,
     rotation: storeRotation,
@@ -206,7 +204,6 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
           model.scale.set(modelProperties.scale, modelProperties.scale, modelProperties.scale);
           model.rotation.set(modelProperties.rotation[0], modelProperties.rotation[1], modelProperties.rotation[2]);
 
-          // Attempt to animate propellers/rotors
           model.traverse((child) => {
             if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes("propeller")) {
               (child as THREE.Mesh).rotation.z = throttle * Math.PI * 10;
@@ -234,6 +231,9 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   const lastCameraToggle = useRef(0);
   const mouseDeltaRef = useRef({ x: 0, y: 0 });
 
+  // Mouse input will control pitch (Y axis) and roll (X axis) in War Thunder arcade style
+  const mouseSensitivity = 0.01; // Tweak as needed for realism/feel
+
   // Handle mouse look
   const handleMouseMove = useCallback((deltaX: number, deltaY: number) => {
     mouseDeltaRef.current.x += deltaX;
@@ -253,7 +253,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     }
 
     const controls = getKeys();
-    
+
     // Handle camera view change
     if (controls.changeView) {
       const currentTime = Date.now();
@@ -269,17 +269,26 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     let roll = storeRotation.z;
     let yaw = storeRotation.y;
 
-    // Apply mouse look (pitch and yaw)
+    // ----------- NEW: Mouse controls pitch & roll; keyboard A/D for yaw ----------
+
+    // Mouse arcade: X → roll, Y → pitch (War Thunder style)
     if (fuel > 0) {
       const mouseDelta = mouseDeltaRef.current;
-      pitch -= mouseDelta.y;
-      yaw += mouseDelta.x;
-      
-      // Reset mouse delta after applying
+      pitch -= mouseDelta.y * mouseSensitivity;   // Mouse Y: pitch
+      roll  -= mouseDelta.x * mouseSensitivity;   // Mouse X: roll
+      // Reset after applying
       mouseDeltaRef.current = { x: 0, y: 0 };
     }
 
-    // Throttle control
+    // Yaw control (A/D keys)
+    if (controls.yawLeft) {
+      yaw -= physics.yawSpeed * delta;
+    }
+    if (controls.yawRight) {
+      yaw += physics.yawSpeed * delta;
+    }
+
+    // Throttle control (W/S keys)
     let newThrottle = throttle;
     if (controls.throttleUp) {
       newThrottle = Math.min(1, throttle + physics.throttleChangeRate * delta);
@@ -290,43 +299,22 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       setThrottle(newThrottle);
     }
 
-    // Only allow control if there's fuel
-    if (fuel > 0) {
-      // Pitch control (W/S - nose up/down)
-      if (controls.forward) {
-        pitch -= physics.pitchSpeed * delta;
-      }
-      if (controls.backward) {
-        pitch += physics.pitchSpeed * delta;
-      }
+    // Afterburner/Boost (Shift key)
+    // You may need to map this in your input hook as "afterburner"
+    const isBoosting = controls.afterburner ?? false;
+    const maxThrustMultiplier = isBoosting ? 1.5 : 1; // 1.5x thrust when boosting; tweak for balance
 
-      // Roll control (A/D - roll left/right)
-      if (controls.left) {
-        roll -= physics.rollSpeed * delta;
-      }
-      if (controls.right) {
-        roll += physics.rollSpeed * delta;
-      }
-
-      // Yaw control (Q/E - turn left/right)
-      if (controls.yawLeft) {
-        yaw -= physics.yawSpeed * delta;
-      }
-      if (controls.yawRight) {
-        yaw += physics.yawSpeed * delta;
-      }
-
-      // Consume fuel based on throttle
-      if (newThrottle > 0) {
-        consumeFuel(physics.fuelConsumptionRate * newThrottle * delta);
-      }
-    } else {
-      // No fuel - reduce throttle
+    // Consume fuel based on throttle (skip if no fuel)
+    if (fuel > 0 && newThrottle > 0) {
+      const boostMultiplier = isBoosting ? 2 : 1; // Optionally boost fuel burn when boosting
+      consumeFuel(physics.fuelConsumptionRate * newThrottle * delta * boostMultiplier);
+    } else if (fuel <= 0) {
+      // No fuel - reduce throttle automatically
       newThrottle = Math.max(0, newThrottle - 0.1 * delta);
       setThrottle(newThrottle);
     }
 
-    // Limit pitch and roll
+    // Limit pitch and roll to realistic ranges
     pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
     roll = Math.max(-Math.PI / 1.5, Math.min(Math.PI / 1.5, roll));
 
@@ -335,13 +323,13 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     const euler = new THREE.Euler(pitch, yaw, roll, 'XYZ');
     forward.applyEuler(euler);
 
-    // Calculate thrust based on throttle
-    const thrust = newThrottle * physics.maxSpeed;
+    // Calculate thrust based on throttle & afterburner
+    const thrust = newThrottle * physics.maxSpeed * maxThrustMultiplier;
 
     // Calculate current speed from velocity
     const currentSpeed = Math.sqrt(
-      velocity.x * velocity.x + 
-      velocity.y * velocity.y + 
+      velocity.x * velocity.x +
+      velocity.y * velocity.y +
       velocity.z * velocity.z
     );
 
@@ -356,7 +344,7 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
 
     // Apply forces
     const thrustForce = forward.multiplyScalar(thrust * delta);
-    
+
     let newVelocity = {
       x: velocity.x + thrustForce.x,
       y: velocity.y + thrustForce.y + (lift - GRAVITY) * delta,
@@ -380,13 +368,13 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     if (newPosition.y < TERRAIN_HEIGHT + 2) {
       newPosition.y = TERRAIN_HEIGHT + 2;
       newVelocity.y = Math.max(0, newVelocity.y);
-      
+
       // If speed is too low, crash
       if (currentSpeed < 5) {
         newVelocity.x *= 0.5;
         newVelocity.z *= 0.5;
       }
-      
+
       // Refuel when on ground and moving slowly
       if (currentSpeed < 10 && fuel < 100) {
         refuel(20 * delta);
@@ -405,13 +393,6 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     setVelocity(newVelocity);
     setSpeed(currentSpeed);
     setAltitude(newPosition.y);
-    
-    // Update store
-    setPosition(newPosition);
-    setRotation({ x: pitch, y: yaw, z: roll });
-    setVelocity(newVelocity);
-    setSpeed(currentSpeed);
-    setAltitude(newPosition.y);
 
     // Update mesh transform
     groupRef.current.position.set(newPosition.x, newPosition.y, newPosition.z);
@@ -425,15 +406,14 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     }
 
     if (currentAircraftType === "helicopter") {
-      // Collective control (increase/decrease vertical thrust)
+      // Optional: helicopter-specific controls
       if (controls.collectiveUp) {
-        newVelocity.y += 5 * delta; // Adjust vertical speed
+        newVelocity.y += 5 * delta;
       }
       if (controls.collectiveDown) {
-        newVelocity.y -= 5 * delta; // Adjust vertical speed
+        newVelocity.y -= 5 * delta;
       }
 
-      // Cyclic control (tilt the helicopter)
       if (controls.cyclicForward) {
         pitch -= physics.pitchSpeed * delta;
       }
@@ -447,7 +427,6 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
         roll += physics.rollSpeed * delta;
       }
 
-      // Tail rotor control (yaw)
       if (controls.tailRotorLeft) {
         yaw -= physics.yawSpeed * delta;
       }
