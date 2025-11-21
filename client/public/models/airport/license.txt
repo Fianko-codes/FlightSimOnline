@@ -1,0 +1,11 @@
+Model Information:
+* title:	Airport (Bigger)
+* source:	https://sketchfab.com/3d-models/airport-bigger-705f23e00a4140a29007b7c0269856cc
+* author:	Warfare (https://sketchfab.com/warfare34)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Airport (Bigger)" (https://sketchfab.com/3d-models/airport-bigger-705f23e00a4140a29007b7c0269856cc) by Warfare (https://sketchfab.com/warfare34) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
