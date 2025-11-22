@@ -56,7 +56,7 @@ function App() {
       <KeyboardControls map={controls}>
         {!hasJoinedLobby && <MultiplayerLobby />}
         {hasJoinedLobby && phase === "ready" && <AircraftSelection />}
-        
+
         <Canvas
           shadows
           camera={{
@@ -77,7 +77,7 @@ function App() {
             <FlightCamera />
           </Suspense>
         </Canvas>
-        
+
         {hasJoinedLobby && phase === "playing" && <HUD />}
       </KeyboardControls>
     </div>

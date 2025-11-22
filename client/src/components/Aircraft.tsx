@@ -6,7 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { useFlightSim, AircraftType } from "@/lib/stores/useFlightSim";
 import { useMouseLook } from "@/hooks/useMouseLook";
 
-const WORLD_SIZE = 10000;
+const WORLD_SIZE = 2000;
 const HALF_WORLD = WORLD_SIZE / 2;
 
 enum Controls {
@@ -194,8 +194,6 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
   const physics = AIRCRAFT_PHYSICS[currentAircraftType];
   const modelProperties = MODEL_PROPERTIES[currentAircraftType];
 
-  const propellerMeshes = useRef<THREE.Mesh[]>([]);
-
   useEffect(() => {
     if (modelProperties.path) {
       const loader = new GLTFLoader();
@@ -206,15 +204,12 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
           model.scale.set(modelProperties.scale, modelProperties.scale, modelProperties.scale);
           model.rotation.set(modelProperties.rotation[0], modelProperties.rotation[1], modelProperties.rotation[2]);
 
-          // Clear previous meshes
-          propellerMeshes.current = [];
-
           model.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              const name = child.name.toLowerCase();
-              if (name.includes("propeller") || name.includes("rotor")) {
-                propellerMeshes.current.push(child as THREE.Mesh);
-              }
+            if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes("propeller")) {
+              (child as THREE.Mesh).rotation.z = throttle * Math.PI * 10;
+            }
+            if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes("rotor")) {
+              (child as THREE.Mesh).rotation.z = throttle * Math.PI * 10;
             }
           });
 
@@ -255,20 +250,6 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
         groupRef.current.rotation.set(rotation[0], rotation[1], rotation[2]);
       }
       return;
-    }
-
-    // Animate propellers/rotors
-    if (propellerMeshes.current.length > 0) {
-      const rotationSpeed = (throttle * 20 + 2) * delta * 10; // Base speed + throttle speed
-      propellerMeshes.current.forEach((mesh) => {
-        // Rotate around the appropriate axis (usually Z for props in these models, Y for heli rotors)
-        // We'll try Z first as it was in the original code, but might need adjustment per model
-        if (mesh.name.toLowerCase().includes("rotor")) {
-          mesh.rotation.y += rotationSpeed;
-        } else {
-          mesh.rotation.z += rotationSpeed;
-        }
-      });
     }
 
     const controls = getKeys();

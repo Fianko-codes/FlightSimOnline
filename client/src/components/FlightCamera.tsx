@@ -15,7 +15,7 @@ interface CameraOffset {
   };
 }
 
-  const CAMERA_OFFSETS: Record<AircraftType, CameraOffset> = {
+const CAMERA_OFFSETS: Record<AircraftType, CameraOffset> = {
   cessna: {
     thirdPerson: { distance: -25, height: 8, lookAtDistance: 20 },
     firstPerson: { forward: 2.5, up: 0.3 },
@@ -60,7 +60,7 @@ export function FlightCamera() {
   useFrame(() => {
     const aircraftPos = new THREE.Vector3(position.x, position.y, position.z);
     const aircraftEuler = new THREE.Euler(rotation.x, rotation.y, rotation.z, 'XYZ');
-    
+
     // Calculate forward, up, and right vectors
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(aircraftEuler);
     const up = new THREE.Vector3(0, 1, 0).applyEuler(aircraftEuler);
