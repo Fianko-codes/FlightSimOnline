@@ -33,10 +33,10 @@ interface FlightSimState {
   speed: number;
   altitude: number;
   aircraftType: AircraftType;
-  
+
   // Camera
   cameraView: CameraView;
-  
+
   // Multiplayer
   socket: Socket | null;
   otherPlayers: Map<string, PlayerState>;
@@ -44,7 +44,7 @@ interface FlightSimState {
   lobbyId: string | null;
   lobbyName: string | null;
   hasJoinedLobby: boolean;
-  
+
   // Actions
   setPosition: (position: Vector3) => void;
   setRotation: (rotation: Vector3) => void;
@@ -60,7 +60,7 @@ interface FlightSimState {
   refuel: (amount: number) => void;
   joinLobby: (lobbyId: string, lobbyName: string) => void;
   leaveLobby: () => void;
-  
+
   // Multiplayer actions
   connectMultiplayer: (lobbyId?: string) => void;
   disconnectMultiplayer: () => void;
@@ -82,10 +82,10 @@ export const useFlightSim = create<FlightSimState>()(
     speed: 0,
     altitude: 50,
     aircraftType: "cessna",
-    
+
     // Initial camera state
     cameraView: "chase",
-    
+
     // Initial multiplayer state
     socket: null,
     otherPlayers: new Map(),
@@ -93,7 +93,7 @@ export const useFlightSim = create<FlightSimState>()(
     lobbyId: null,
     lobbyName: null,
     hasJoinedLobby: false,
-    
+
     // Actions
     setPosition: (position) => set({ position }),
     setRotation: (rotation) => set({ rotation }),
@@ -103,9 +103,9 @@ export const useFlightSim = create<FlightSimState>()(
     setSpeed: (speed) => set({ speed }),
     setAltitude: (altitude) => set({ altitude }),
     setAircraftType: (type) => set({ aircraftType: type }),
-    
+
     setCameraView: (view) => set({ cameraView: view }),
-    
+
     cycleCameraView: () => {
       const views: CameraView[] = ["chase", "firstperson", "external"];
       const currentView = get().cameraView;
@@ -113,12 +113,12 @@ export const useFlightSim = create<FlightSimState>()(
       const nextIndex = (currentIndex + 1) % views.length;
       set({ cameraView: views[nextIndex] });
     },
-    
+
     consumeFuel: (amount) => {
       const currentFuel = get().fuel;
       set({ fuel: Math.max(0, currentFuel - amount) });
     },
-    
+
     refuel: (amount) => {
       const currentFuel = get().fuel;
       set({ fuel: Math.min(100, currentFuel + amount) });
@@ -152,7 +152,7 @@ export const useFlightSim = create<FlightSimState>()(
         isConnected: false,
       });
     },
-    
+
     // Multiplayer actions
     connectMultiplayer: (lobbyIdParam) => {
       const lobbyId = lobbyIdParam || get().lobbyId;
@@ -170,16 +170,16 @@ export const useFlightSim = create<FlightSimState>()(
         transports: ['websocket', 'polling'],
         query: { lobbyId }
       });
-      
+
       socket.on("connect", () => {
         console.log("Connected to multiplayer server");
         set({ isConnected: true });
       });
-      
+
       socket.on("init", (data: { playerId: string; players: PlayerState[] }) => {
         console.log("Initialized with player ID:", data.playerId);
         set({ playerId: data.playerId });
-        
+
         // Add all existing players
         const otherPlayers = new Map<string, PlayerState>();
         data.players.forEach(player => {
@@ -189,29 +189,29 @@ export const useFlightSim = create<FlightSimState>()(
         });
         set({ otherPlayers });
       });
-      
+
       socket.on("playerJoined", (player: PlayerState) => {
         console.log("Player joined:", player.id);
         get().addOtherPlayer(player);
       });
-      
+
       socket.on("playerUpdate", (player: PlayerState) => {
         get().updateOtherPlayer(player);
       });
-      
+
       socket.on("playerLeft", (playerId: string) => {
         console.log("Player left:", playerId);
         get().removeOtherPlayer(playerId);
       });
-      
+
       socket.on("disconnect", () => {
         console.log("Disconnected from multiplayer server");
         set({ isConnected: false });
       });
-      
+
       set({ socket });
     },
-    
+
     disconnectMultiplayer: () => {
       const socket = get().socket;
       if (socket) {
@@ -224,7 +224,7 @@ export const useFlightSim = create<FlightSimState>()(
         });
       }
     },
-    
+
     updateMultiplayerState: () => {
       const socket = get().socket;
       if (socket && socket.connected) {
@@ -240,13 +240,13 @@ export const useFlightSim = create<FlightSimState>()(
         socket.emit("updateState", state);
       }
     },
-    
+
     addOtherPlayer: (player) => {
       const otherPlayers = new Map(get().otherPlayers);
       otherPlayers.set(player.id, player);
       set({ otherPlayers });
     },
-    
+
     updateOtherPlayer: (player) => {
       const otherPlayers = new Map(get().otherPlayers);
       if (otherPlayers.has(player.id)) {
@@ -254,7 +254,7 @@ export const useFlightSim = create<FlightSimState>()(
         set({ otherPlayers });
       }
     },
-    
+
     removeOtherPlayer: (playerId) => {
       const otherPlayers = new Map(get().otherPlayers);
       otherPlayers.delete(playerId);

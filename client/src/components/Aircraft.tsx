@@ -400,11 +400,11 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       }
     }
 
-    // World wrapping removed for infinite procedural terrain
-    // if (newPosition.x > HALF_WORLD) newPosition.x -= WORLD_SIZE;
-    // if (newPosition.x < -HALF_WORLD) newPosition.x += WORLD_SIZE;
-    // if (newPosition.z > HALF_WORLD) newPosition.z -= WORLD_SIZE;
-    // if (newPosition.z < -HALF_WORLD) newPosition.z += WORLD_SIZE;
+    // World wrapping for infinite loop illusion
+    if (newPosition.x > HALF_WORLD) newPosition.x -= WORLD_SIZE;
+    if (newPosition.x < -HALF_WORLD) newPosition.x += WORLD_SIZE;
+    if (newPosition.z > HALF_WORLD) newPosition.z -= WORLD_SIZE;
+    if (newPosition.z < -HALF_WORLD) newPosition.z += WORLD_SIZE;
 
     // Continue as before...
     setPosition(newPosition);
