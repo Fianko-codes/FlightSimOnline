@@ -29,8 +29,8 @@ const CAMERA_OFFSETS: Record<AircraftType, CameraOffset> = {
     firstPerson: { forward: 2.5, up: 0.3 },
   },
   helicopter: {
-    thirdPerson: { distance: -22, height: 7, lookAtDistance: 17 },
-    firstPerson: { forward: 2.5, up: 0.5 },
+    thirdPerson: { distance: -25, height: 25, lookAtDistance: 9 }, // Closer, higher for better ground reference
+    firstPerson: { forward: 2.5, up: 1.5 }, // Higher cockpit view
   },
   glider: {
     thirdPerson: { distance: -30, height: 10, lookAtDistance: 25 },

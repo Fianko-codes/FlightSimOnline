@@ -1,7 +1,11 @@
 import { useFlightSim } from "@/lib/stores/useFlightSim";
 
 export function HUD() {
-  const { speed, altitude, fuel, throttle, cameraView, otherPlayers, lobbyName, lobbyId } = useFlightSim();
+  const {
+    speed, altitude, fuel, throttle, cameraView, otherPlayers, lobbyName, lobbyId,
+    flapsPosition, airbrakeDeployed, trimSettings, autoLevelEnabled,
+    angleOfAttack, stallWarning, controlAuthority
+  } = useFlightSim();
 
   const formatCameraView = (view: string) => {
     switch (view) {
@@ -34,6 +38,24 @@ export function HUD() {
             <span className="text-gray-300">THROTTLE:</span>
             <span className="text-green-400 font-bold">{(throttle * 100).toFixed(0)}%</span>
           </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-300">FLAPS:</span>
+            <span className={`font-bold ${flapsPosition > 0.66 ? "text-yellow-400" :
+                flapsPosition > 0.33 ? "text-yellow-300" :
+                  flapsPosition > 0 ? "text-green-300" : "text-gray-500"
+              }`}>{(flapsPosition * 100).toFixed(0)}%</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-300">AoA:</span>
+            <span className={`font-bold ${angleOfAttack > 0.2 ? "text-red-400" : "text-green-400"
+              }`}>{(angleOfAttack * 57.3).toFixed(1)}°</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-300">CTRL:</span>
+            <span className={`font-bold ${controlAuthority > 0.7 ? "text-green-400" :
+                controlAuthority > 0.4 ? "text-yellow-400" : "text-red-400"
+              }`}>{(controlAuthority * 100).toFixed(0)}%</span>
+          </div>
         </div>
       </div>
 
@@ -42,13 +64,12 @@ export function HUD() {
         <div className="text-xl font-bold mb-2 text-yellow-400">FUEL</div>
         <div className="w-48 h-8 bg-gray-700 rounded-lg overflow-hidden border-2 border-gray-500">
           <div
-            className={`h-full transition-all duration-300 ${
-              fuel > 50
+            className={`h-full transition-all duration-300 ${fuel > 50
                 ? "bg-green-500"
                 : fuel > 20
-                ? "bg-yellow-500"
-                : "bg-red-500"
-            }`}
+                  ? "bg-yellow-500"
+                  : "bg-red-500"
+              }`}
             style={{ width: `${fuel}%` }}
           />
         </div>
@@ -74,7 +95,11 @@ export function HUD() {
           <div><span className="text-gray-400">Mouse:</span> Pitch (up/down), Roll (left/right)</div>
           <div><span className="text-gray-400">W/S:</span> Throttle</div>
           <div><span className="text-gray-400">A/D:</span> Yaw (rudder)</div>
-          <div><span className="text-gray-400">Shift:</span> Afterburner/Boost</div>
+          <div><span className="text-gray-400">Shift:</span> Boost</div>
+          <div><span className="text-gray-400">F/R:</span> Flaps</div>
+          <div><span className="text-gray-400">B:</span> Airbrakes</div>
+          <div><span className="text-gray-400">L:</span> Auto-Level {autoLevelEnabled && "✓"}</div>
+          <div><span className="text-gray-400">Arrows:</span> Trim</div>
           <div className="col-span-2"><span className="text-gray-400">C:</span> Change Camera</div>
           <div className="col-span-2 text-xs text-gray-500 mt-1">Click to lock mouse cursor</div>
         </div>
@@ -119,6 +144,16 @@ export function HUD() {
       </div>
 
       {/* Top center - Warning messages */}
+      {stallWarning && (
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-red-600/90 px-6 py-3 rounded-lg backdrop-blur-sm animate-pulse">
+          <div className="text-2xl font-bold text-white">⚠ STALL WARNING</div>
+        </div>
+      )}
+      {airbrakeDeployed && (
+        <div className="absolute top-28 left-1/2 transform -translate-x-1/2 bg-blue-600/80 px-4 py-2 rounded-lg backdrop-blur-sm">
+          <div className="text-lg font-bold text-white">AIRBRAKES DEPLOYED</div>
+        </div>
+      )}
       {fuel <= 0 && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-600/90 px-6 py-3 rounded-lg backdrop-blur-sm animate-pulse">
           <div className="text-2xl font-bold text-white">⚠ ENGINE FAILURE - NO FUEL</div>

@@ -6,6 +6,7 @@ import { Environment } from "./components/Environment";
 import { Aircraft } from "./components/Aircraft";
 import { FlightCamera } from "./components/FlightCamera";
 import { HUD } from "./components/HUD";
+import { HelicopterHUD } from "./components/HelicopterHUD";
 import { MultiplayerPlayers } from "./components/MultiplayerPlayers";
 import { AircraftSelection } from "./components/AircraftSelection";
 import { MultiplayerLobby } from "./components/MultiplayerLobby";
@@ -22,6 +23,13 @@ enum Controls {
   throttleUp = "throttleUp",
   throttleDown = "throttleDown",
   changeView = "changeView",
+  boost = "boost",
+  flapsExtend = "flapsExtend",
+  flapsRetract = "flapsRetract",
+  airbrake = "airbrake",
+  autoLevel = "autoLevel",
+  trimPitchUp = "trimPitchUp",
+  trimPitchDown = "trimPitchDown",
 }
 
 const controls = [
@@ -31,10 +39,16 @@ const controls = [
   { name: Controls.throttleDown, keys: ["KeyS"] },
   { name: Controls.changeView, keys: ["KeyC"] },
   { name: Controls.boost, keys: ["ShiftLeft", "ShiftRight"] },
+  { name: Controls.flapsExtend, keys: ["KeyF"] },
+  { name: Controls.flapsRetract, keys: ["KeyR"] },
+  { name: Controls.airbrake, keys: ["KeyB"] },
+  { name: Controls.autoLevel, keys: ["KeyL"] },
+  { name: Controls.trimPitchUp, keys: ["ArrowUp"] },
+  { name: Controls.trimPitchDown, keys: ["ArrowDown"] },
 ];
 
 function App() {
-  const { connectMultiplayer, disconnectMultiplayer, hasJoinedLobby, lobbyId } = useFlightSim();
+  const { connectMultiplayer, disconnectMultiplayer, hasJoinedLobby, lobbyId, aircraftType } = useFlightSim();
   const { phase } = useGame();
 
   useEffect(() => {
@@ -78,7 +92,9 @@ function App() {
           </Suspense>
         </Canvas>
 
-        {hasJoinedLobby && phase === "playing" && <HUD />}
+        {hasJoinedLobby && phase === "playing" && (
+          aircraftType === "helicopter" ? <HelicopterHUD /> : <HUD />
+        )}
       </KeyboardControls>
     </div>
   );

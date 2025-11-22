@@ -34,6 +34,22 @@ interface FlightSimState {
   altitude: number;
   aircraftType: AircraftType;
 
+  // Advanced flight controls
+  flapsPosition: number; // 0-1 (retracted to fully extended)
+  airbrakeDeployed: boolean;
+  trimSettings: { pitch: number; roll: number; yaw: number };
+  autoLevelEnabled: boolean;
+  angleOfAttack: number;
+  stallWarning: boolean;
+  controlAuthority: number; // 0-1 based on airspeed
+
+  // Helicopter-specific state
+  collectivePosition: number; // 0-1
+  rotorRPM: number; // 0-100%
+  torque: number; // 0-100%
+  verticalSpeed: number; // m/s
+  inGroundEffect: boolean;
+
   // Camera
   cameraView: CameraView;
 
@@ -61,6 +77,23 @@ interface FlightSimState {
   joinLobby: (lobbyId: string, lobbyName: string) => void;
   leaveLobby: () => void;
 
+  // Advanced control actions
+  setFlapsPosition: (position: number) => void;
+  toggleAirbrake: () => void;
+  adjustTrim: (axis: 'pitch' | 'roll' | 'yaw', delta: number) => void;
+  resetTrim: () => void;
+  toggleAutoLevel: () => void;
+  updateAngleOfAttack: (aoa: number) => void;
+  updateStallWarning: (warning: boolean) => void;
+  updateControlAuthority: (authority: number) => void;
+
+  // Helicopter actions
+  setCollective: (position: number) => void;
+  updateRotorRPM: (rpm: number) => void;
+  updateTorque: (torque: number) => void;
+  updateVerticalSpeed: (vs: number) => void;
+  setInGroundEffect: (inEffect: boolean) => void;
+
   // Multiplayer actions
   connectMultiplayer: (lobbyId?: string) => void;
   disconnectMultiplayer: () => void;
@@ -82,6 +115,22 @@ export const useFlightSim = create<FlightSimState>()(
     speed: 0,
     altitude: 50,
     aircraftType: "cessna",
+
+    // Advanced flight controls state
+    flapsPosition: 0,
+    airbrakeDeployed: false,
+    trimSettings: { pitch: 0, roll: 0, yaw: 0 },
+    autoLevelEnabled: false,
+    angleOfAttack: 0,
+    stallWarning: false,
+    controlAuthority: 1.0,
+
+    // Helicopter state
+    collectivePosition: 0.5,
+    rotorRPM: 100,
+    torque: 0,
+    verticalSpeed: 0,
+    inGroundEffect: false,
 
     // Initial camera state
     cameraView: "chase",
@@ -123,6 +172,38 @@ export const useFlightSim = create<FlightSimState>()(
       const currentFuel = get().fuel;
       set({ fuel: Math.min(100, currentFuel + amount) });
     },
+
+    // Advanced control actions
+    setFlapsPosition: (position) => set({ flapsPosition: Math.max(0, Math.min(1, position)) }),
+
+    toggleAirbrake: () => set({ airbrakeDeployed: !get().airbrakeDeployed }),
+
+    adjustTrim: (axis, delta) => {
+      const current = get().trimSettings;
+      const newValue = Math.max(-0.5, Math.min(0.5, current[axis] + delta));
+      set({ trimSettings: { ...current, [axis]: newValue } });
+    },
+
+    resetTrim: () => set({ trimSettings: { pitch: 0, roll: 0, yaw: 0 } }),
+
+    toggleAutoLevel: () => set({ autoLevelEnabled: !get().autoLevelEnabled }),
+
+    updateAngleOfAttack: (aoa) => set({ angleOfAttack: aoa }),
+
+    updateStallWarning: (warning) => set({ stallWarning: warning }),
+
+    updateControlAuthority: (authority) => set({ controlAuthority: Math.max(0, Math.min(1, authority)) }),
+
+    // Helicopter actions
+    setCollective: (position) => set({ collectivePosition: Math.max(0, Math.min(1, position)) }),
+
+    updateRotorRPM: (rpm) => set({ rotorRPM: Math.max(0, Math.min(110, rpm)) }),
+
+    updateTorque: (torque) => set({ torque: Math.max(0, Math.min(100, torque)) }),
+
+    updateVerticalSpeed: (vs) => set({ verticalSpeed: vs }),
+
+    setInGroundEffect: (inEffect) => set({ inGroundEffect: inEffect }),
 
     joinLobby: (lobbyId, lobbyName) => {
       const currentLobby = get().lobbyId;

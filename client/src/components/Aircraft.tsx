@@ -10,14 +10,19 @@ const WORLD_SIZE = 2000;
 const HALF_WORLD = WORLD_SIZE / 2;
 
 enum Controls {
-  // Only keep the ones necessary for the new scheme
-  yawLeft = "yawLeft",      // A
-  yawRight = "yawRight",    // D
-  throttleUp = "throttleUp",    // W
-  throttleDown = "throttleDown", // S
-  afterburner = "afterburner",  // Shift (NEW – you may need to add to your key handler for "afterburner")
-  changeView = "changeView",    // C
-  // Keep heli/cyclic's for helicopter special handling if needed
+  yawLeft = "yawLeft",
+  yawRight = "yawRight",
+  throttleUp = "throttleUp",
+  throttleDown = "throttleDown",
+  boost = "boost",
+  changeView = "changeView",
+  flapsExtend = "flapsExtend",
+  flapsRetract = "flapsRetract",
+  airbrake = "airbrake",
+  autoLevel = "autoLevel",
+  trimPitchUp = "trimPitchUp",
+  trimPitchDown = "trimPitchDown",
+  // Helicopter controls
   collectiveUp = "collectiveUp",
   collectiveDown = "collectiveDown",
   cyclicForward = "cyclicForward",
@@ -177,6 +182,13 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     throttle,
     fuel,
     aircraftType: storeAircraftType,
+    flapsPosition,
+    airbrakeDeployed,
+    trimSettings,
+    autoLevelEnabled,
+    angleOfAttack,
+    stallWarning,
+    controlAuthority,
     setPosition,
     setRotation,
     setVelocity,
@@ -186,7 +198,24 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     consumeFuel,
     refuel,
     updateMultiplayerState,
-    cycleCameraView
+    cycleCameraView,
+    setFlapsPosition,
+    toggleAirbrake,
+    adjustTrim,
+    toggleAutoLevel,
+    updateAngleOfAttack,
+    updateStallWarning,
+    updateControlAuthority,
+    collectivePosition,
+    rotorRPM,
+    torque,
+    verticalSpeed,
+    inGroundEffect,
+    setCollective,
+    updateRotorRPM,
+    updateTorque,
+    updateVerticalSpeed,
+    setInGroundEffect,
   } = useFlightSim();
 
   // Determine which aircraft type to use
@@ -229,10 +258,13 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
 
   const lastMultiplayerUpdate = useRef(0);
   const lastCameraToggle = useRef(0);
+  const lastFlapsToggle = useRef(0);
+  const lastAirbrakeToggle = useRef(0);
+  const lastAutoLevelToggle = useRef(0);
   const mouseDeltaRef = useRef({ x: 0, y: 0 });
 
-  // Mouse input will control pitch (Y axis) and roll (X axis) in War Thunder arcade style
-  const mouseSensitivity = 0.5; // Tweak as needed for realism/feel
+  // Mouse sensitivity - increased for better control
+  const mouseSensitivity = 1.2; // Increased from 0.5
 
   // Handle mouse look
   const handleMouseMove = useCallback((deltaX: number, deltaY: number) => {
@@ -269,23 +301,73 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     let roll = storeRotation.z;
     let yaw = storeRotation.y;
 
-    // ----------- NEW: Mouse controls pitch & roll; keyboard A/D for yaw ----------
+    // Calculate current speed first (needed for physics)
+    const currentSpeed = Math.sqrt(
+      velocity.x * velocity.x +
+      velocity.y * velocity.y +
+      velocity.z * velocity.z
+    );
 
-    // Mouse arcade: X → roll, Y → pitch (War Thunder style)
+    // ----------- REALISTIC CONTROL AUTHORITY ----------
+    // Controls become less effective at very low and very high speeds
+    const normalizedSpeed = currentSpeed / physics.maxSpeed;
+    let authority = 1.0;
+    if (currentSpeed < physics.minFlightSpeed * 0.5) {
+      authority = 0.2; // Minimal control at very low speed
+    } else if (currentSpeed < physics.minFlightSpeed) {
+      authority = 0.2 + (currentSpeed / physics.minFlightSpeed) * 0.4;
+    } else if (normalizedSpeed < 0.8) {
+      authority = 0.6 + normalizedSpeed * 0.4; // Progressive increase
+    } else {
+      // Control stiffening at high speed
+      authority = Math.max(0.3, 1.0 - (normalizedSpeed - 0.8) * 1.5);
+    }
+    updateControlAuthority(authority);
+
+    // ----------- EXPONENTIAL MOUSE CURVES ----------
+    // Reduced exponential for easier control
+    const applyExponential = (input: number, exp: number = 1.6) => {
+      const sign = Math.sign(input);
+      return sign * Math.pow(Math.abs(input), exp);
+    };
+
+    // Mouse controls with exponential curves and control authority
     if (fuel > 0) {
       const mouseDelta = mouseDeltaRef.current;
-      pitch -= mouseDelta.y * mouseSensitivity;   // Mouse Y: pitch
-      roll -= mouseDelta.x * mouseSensitivity;   // Mouse X: roll
-      // Reset after applying
+
+      // Apply exponential curve for progressive response
+      const pitchInput = applyExponential(mouseDelta.y, 1.6) * mouseSensitivity * authority;
+      const rollInput = applyExponential(mouseDelta.x, 1.6) * mouseSensitivity * authority;
+
+      pitch -= pitchInput;
+      roll -= rollInput;
+
+      // ----------- ADVERSE YAW ----------
+      // Rolling creates yaw in opposite direction (requires rudder to coordinate)
+      yaw += rollInput * 0.3; // Roll right → nose yaws left
+
       mouseDeltaRef.current = { x: 0, y: 0 };
     }
 
-    // Yaw control (A/D keys)
+    // ----------- TRIM SYSTEM ----------
+    // Apply trim offsets for hands-off flight
+    pitch += trimSettings.pitch;
+    roll += trimSettings.roll;
+    yaw += trimSettings.yaw;
+
+    // ----------- AUTO-LEVEL ASSIST ----------
+    if (autoLevelEnabled) {
+      const levelingForce = 0.5 * delta;
+      pitch += (0 - pitch) * levelingForce; // Return to level pitch
+      roll += (0 - roll) * levelingForce;   // Return to level roll
+    }
+
+    // Yaw control (A/D keys) with authority scaling
     if (controls.yawLeft) {
-      yaw -= physics.yawSpeed * delta;
+      yaw -= physics.yawSpeed * delta * authority;
     }
     if (controls.yawRight) {
-      yaw += physics.yawSpeed * delta;
+      yaw += physics.yawSpeed * delta * authority;
     }
 
     // Throttle control (W/S keys)
@@ -300,13 +382,12 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     }
 
     // Afterburner/Boost (Shift key)
-    // You may need to map this in your input hook as "afterburner"
-    const isBoosting = controls.afterburner ?? false;
-    const maxThrustMultiplier = isBoosting ? 1.5 : 1; // 1.5x thrust when boosting; tweak for balance
+    const isBoosting = controls.boost ?? false;
+    const maxThrustMultiplier = isBoosting ? 1.5 : 1;
 
-    // Consume fuel based on throttle (skip if no fuel)
+    // Consume fuel based on throttle
     if (fuel > 0 && newThrottle > 0) {
-      const boostMultiplier = isBoosting ? 2 : 1; // Optionally boost fuel burn when boosting
+      const boostMultiplier = isBoosting ? 2 : 1;
       consumeFuel(physics.fuelConsumptionRate * newThrottle * delta * boostMultiplier);
     } else if (fuel <= 0) {
       // No fuel - reduce throttle automatically
@@ -314,33 +395,96 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
       setThrottle(newThrottle);
     }
 
+    // ----------- FLAPS CONTROL ----------
+    const currentTime = Date.now();
+    if (controls.flapsExtend && currentTime - lastFlapsToggle.current > 300) {
+      setFlapsPosition(Math.min(1, flapsPosition + 0.33));
+      lastFlapsToggle.current = currentTime;
+    }
+    if (controls.flapsRetract && currentTime - lastFlapsToggle.current > 300) {
+      setFlapsPosition(Math.max(0, flapsPosition - 0.33));
+      lastFlapsToggle.current = currentTime;
+    }
+
+    // ----------- AIRBRAKE CONTROL ----------
+    if (controls.airbrake && currentTime - lastAirbrakeToggle.current > 300) {
+      toggleAirbrake();
+      lastAirbrakeToggle.current = currentTime;
+    }
+
+    // ----------- AUTO-LEVEL TOGGLE ----------
+    if (controls.autoLevel && currentTime - lastAutoLevelToggle.current > 300) {
+      toggleAutoLevel();
+      lastAutoLevelToggle.current = currentTime;
+    }
+
+    // ----------- TRIM ADJUSTMENT ----------
+    if (controls.trimPitchUp) {
+      adjustTrim('pitch', 0.15 * delta);
+    }
+    if (controls.trimPitchDown) {
+      adjustTrim('pitch', -0.15 * delta);
+    }
+
     // Limit pitch and roll to realistic ranges
     pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
     roll = Math.max(-Math.PI / 1.5, Math.min(Math.PI / 1.5, roll));
 
-    // Calculate forward vector based on rotation
+    // ----------- ANGLE OF ATTACK CALCULATION ----------
+    const upVector = new THREE.Vector3(0, 1, 0);
     const forward = new THREE.Vector3(0, 0, -1);
     const euler = new THREE.Euler(pitch, yaw, roll, 'XYZ');
     forward.applyEuler(euler);
+    upVector.applyEuler(euler);
+
+    // Calculate velocity direction
+    const velocityDir = new THREE.Vector3(velocity.x, velocity.y, velocity.z).normalize();
+    const aoa = currentSpeed > 5 ? Math.acos(Math.max(-1, Math.min(1, forward.dot(velocityDir)))) : 0;
+    updateAngleOfAttack(aoa);
+
+    // ----------- STALL MECHANICS ----------
+    const criticalAoA = 0.26; // ~15 degrees
+    const isStalling = aoa > criticalAoA && currentSpeed > physics.minFlightSpeed;
+    updateStallWarning(isStalling);
 
     // Calculate thrust based on throttle & afterburner
     const thrust = newThrottle * physics.maxSpeed * maxThrustMultiplier;
 
-    // Calculate current speed from velocity
-    const currentSpeed = Math.sqrt(
-      velocity.x * velocity.x +
-      velocity.y * velocity.y +
-      velocity.z * velocity.z
-    );
-
-    // Lift force (based on speed and pitch)
+    // ----------- LIFT CALCULATION WITH FLAPS ----------
     let lift = 0;
-    if (currentSpeed > physics.minFlightSpeed) {
-      lift = physics.liftCoefficient * currentSpeed * Math.cos(pitch);
+    if (currentSpeed > physics.minFlightSpeed * 0.8 || isStalling) {
+      // Base lift from speed and pitch
+      let liftCoeff = physics.liftCoefficient;
+
+      // Flaps increase lift coefficient
+      liftCoeff += flapsPosition * 0.08;
+
+      // Stall reduces lift dramatically
+      if (isStalling) {
+        liftCoeff *= 0.3; // 70% lift loss in stall
+      }
+
+      lift = liftCoeff * currentSpeed * Math.cos(pitch);
     }
 
-    // Drag force
-    const drag = physics.dragCoefficient * currentSpeed * currentSpeed;
+    // ----------- DRAG CALCULATION WITH AIRBRAKES ----------
+    let drag = physics.dragCoefficient * currentSpeed * currentSpeed;
+
+    // Flaps add induced drag
+    drag += flapsPosition * 0.015 * currentSpeed * currentSpeed;
+
+    // Airbrakes add significant drag
+    if (airbrakeDeployed) {
+      drag += 0.05 * currentSpeed * currentSpeed;
+    }
+
+    // ----------- GROUND EFFECT ----------
+    const groundHeight = Math.max(0, storePosition.y - TERRAIN_HEIGHT);
+    if (groundHeight < 10 && groundHeight > 0) {
+      // Increased lift near ground (cushion effect)
+      const groundEffectFactor = 1 + (10 - groundHeight) / 10 * 0.3;
+      lift *= groundEffectFactor;
+    }
 
     // Apply forces
     const thrustForce = forward.multiplyScalar(thrust * delta);
@@ -406,33 +550,132 @@ export function Aircraft({ isPlayer = true, playerId, position, rotation, aircra
     }
 
     if (currentAircraftType === "helicopter") {
-      // Optional: helicopter-specific controls
-      if (controls.collectiveUp) {
-        newVelocity.y += 5 * delta;
+      // ========== COMPLETE HELICOPTER PHYSICS ==========
+      // This helicopter uses realistic collective/cyclic/pedal controls
+      // Calculate current speed
+      const heliSpeed = Math.sqrt(
+        velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z
+      );
+      const horizontalSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+
+      // Override pitch/roll/yaw for helicopter
+      pitch = storeRotation.x;
+      roll = storeRotation.z;
+      yaw = storeRotation.y;
+
+      // COLLECTIVE (W/S)
+      let newCollective = collectivePosition;
+      if (controls.throttleUp) {
+        newCollective = Math.min(1, collectivePosition + 0.6 * delta);
+        setCollective(newCollective);
       }
-      if (controls.collectiveDown) {
-        newVelocity.y -= 5 * delta;
+      if (controls.throttleDown) {
+        newCollective = Math.max(0, collectivePosition - 0.6 * delta);
+        setCollective(newCollective);
+      }
+      const collectiveBoost = (controls.boost ?? false) ? 0.2 : 0;
+      const effectiveCollective = Math.min(1, newCollective + collectiveBoost);
+
+      // ROTOR RPM
+      const targetRPM = 100 - (effectiveCollective * 8);
+      const newRPM = rotorRPM + (targetRPM - rotorRPM) * 3 * delta;
+      updateRotorRPM(newRPM);
+
+      // TORQUE
+      const newTorque = effectiveCollective * 85 + heliSpeed * 0.15;
+      updateTorque(newTorque);
+
+      // CYCLIC (Mouse)
+      const cyclicSens = 1.5; // Increased sensitivity for better control
+      if (fuel > 0) {
+        const mouseDelta = mouseDeltaRef.current;
+        // Direct mouse input without delta multiplication
+        pitch -= mouseDelta.y * cyclicSens;
+        roll -= mouseDelta.x * cyclicSens;
+        mouseDeltaRef.current = { x: 0, y: 0 };
       }
 
-      if (controls.cyclicForward) {
-        pitch -= physics.pitchSpeed * delta;
-      }
-      if (controls.cyclicBackward) {
-        pitch += physics.pitchSpeed * delta;
-      }
-      if (controls.cyclicLeft) {
-        roll -= physics.rollSpeed * delta;
-      }
-      if (controls.cyclicRight) {
-        roll += physics.rollSpeed * delta;
+      // PEDALS (A/D)
+      const pedalSpeed = 1.5;
+      const torqueEffect = effectiveCollective * 0.3;
+      if (controls.yawLeft) yaw -= (pedalSpeed + torqueEffect) * delta;
+      if (controls.yawRight) yaw += (pedalSpeed - torqueEffect) * delta;
+      yaw += torqueEffect * delta * 0.3; // Natural torque
+
+      pitch = Math.max(-0.785, Math.min(0.785, pitch));
+      roll = Math.max(-1.047, Math.min(1.047, roll));
+
+      // VERTICAL THRUST
+      let verticalThrust = effectiveCollective * 25;
+
+      // GROUND EFFECT
+      const groundHeight = Math.max(0, storePosition.y - TERRAIN_HEIGHT);
+      const isInGE = groundHeight < 12;
+      setInGroundEffect(isInGE);
+      if (isInGE) {
+        verticalThrust *= 1 + (12 - groundHeight) / 12 * 0.4;
       }
 
-      if (controls.tailRotorLeft) {
-        yaw -= physics.yawSpeed * delta;
+      // TRANSLATIONAL LIFT
+      if (horizontalSpeed > 5 && horizontalSpeed < 30) {
+        verticalThrust *= 1 + Math.min(0.25, (horizontalSpeed - 5) / 20 * 0.25);
       }
-      if (controls.tailRotorRight) {
-        yaw += physics.yawSpeed * delta;
+
+      // FORWARD FLIGHT
+      const forward = new THREE.Vector3(0, 0, -1);
+      const euler = new THREE.Euler(pitch, yaw, roll, 'XYZ');
+      forward.applyEuler(euler);
+      const tiltThrust = effectiveCollective * 12;
+      const tiltForce = forward.multiplyScalar(tiltThrust * delta);
+
+      // DRAG
+      const drag = 0.03 * heliSpeed * heliSpeed;
+      const dragFactor = Math.max(0, 1 - drag * delta);
+
+      // UPDATE VELOCITY
+      newVelocity = {
+        x: (velocity.x + tiltForce.x) * dragFactor,
+        y: (velocity.y + (verticalThrust - GRAVITY) * delta) * dragFactor * 0.95,
+        z: (velocity.z + tiltForce.z) * dragFactor
+      };
+
+      // VORTEX RING STATE
+      const descentRate = -newVelocity.y;
+      const isVRS = descentRate > 5 && horizontalSpeed < 10 && effectiveCollective > 0.5;
+      updateStallWarning(isVRS);
+      if (isVRS) newVelocity.y -= 3 * delta;
+
+      updateVerticalSpeed(newVelocity.y);
+
+      // FUEL
+      if (fuel > 0 && effectiveCollective > 0) {
+        consumeFuel(physics.fuelConsumptionRate * effectiveCollective * delta * 1.5);
       }
+
+      // POSITION
+      newPosition.x = storePosition.x + newVelocity.x * delta;
+      newPosition.y = storePosition.y + newVelocity.y * delta;
+      newPosition.z = storePosition.z + newVelocity.z * delta;
+
+      if (newPosition.y < TERRAIN_HEIGHT + 1) {
+        newPosition.y = TERRAIN_HEIGHT + 1;
+        newVelocity.y = Math.max(0, newVelocity.y * 0.3);
+        if (heliSpeed < 5 && fuel < 100) refuel(20 * delta);
+      }
+
+      // World wrapping
+      if (newPosition.x > HALF_WORLD) newPosition.x -= WORLD_SIZE;
+      if (newPosition.x < -HALF_WORLD) newPosition.x += WORLD_SIZE;
+      if (newPosition.z > HALF_WORLD) newPosition.z -= WORLD_SIZE;
+      if (newPosition.z < -HALF_WORLD) newPosition.z += WORLD_SIZE;
+
+      setPosition(newPosition);
+      setRotation({ x: pitch, y: yaw, z: roll });
+      setVelocity(newVelocity);
+      setSpeed(heliSpeed);
+      setAltitude(newPosition.y);
+      groupRef.current.position.set(newPosition.x, newPosition.y, newPosition.z);
+      groupRef.current.rotation.set(pitch, yaw, roll);
     }
   });
 
